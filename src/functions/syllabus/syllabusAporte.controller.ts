@@ -59,14 +59,14 @@ export class SyllabusAporteController implements BaseController {
     let body: {
       resultadoProgramaCodigo: string;
       resultadoProgramaDescripcion?: string;
-      aporteValor?: "K" | "R";
+      aporteValor?: "K" | "R" | "" | null;
     };
 
     try {
       body = (await req.json()) as {
         resultadoProgramaCodigo: string;
         resultadoProgramaDescripcion?: string;
-        aporteValor?: "K" | "R";
+        aporteValor?: "K" | "R" | "" | null;
       };
     } catch (error) {
       context.error("Error parseando JSON", error);
@@ -76,15 +76,22 @@ export class SyllabusAporteController implements BaseController {
       };
     }
 
-    // Validación de aporteValor-Ejecucion
+    // ✅ Normalizar "" a null
+    const aporteValorNormalizado =
+      body.aporteValor === "" ? null : body.aporteValor;
+
+    // ✅ Validación
     if (
-      body.aporteValor &&
-      body.aporteValor !== "K" &&
-      body.aporteValor !== "R"
+      aporteValorNormalizado !== null &&
+      aporteValorNormalizado !== undefined &&
+      aporteValorNormalizado !== "K" &&
+      aporteValorNormalizado !== "R"
     ) {
       return {
         status: STATUS_CODES.BAD_REQUEST,
-        jsonBody: { message: "El campo aporteValor solo puede ser 'K' o 'R'" },
+        jsonBody: {
+          message: "El campo aporteValor solo puede ser 'K', 'R' o vacío",
+        },
       };
     }
 
@@ -94,7 +101,7 @@ export class SyllabusAporteController implements BaseController {
         body.resultadoProgramaCodigo,
         {
           resultadoProgramaDescripcion: body.resultadoProgramaDescripcion,
-          aporteValor: body.aporteValor,
+          aporteValor: aporteValorNormalizado, // 👈 ya es "K", "R" o null
         },
       );
 
