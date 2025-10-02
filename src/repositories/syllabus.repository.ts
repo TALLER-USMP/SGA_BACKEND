@@ -22,7 +22,7 @@ export class SyllabusRepository {
       condiciones.push(eq(silabo.ciclo, filtros.ciclo));
     }
     // if (filtros.estado) {
-    //   condiciones.push(eq(silabo.estado, filtros.estado)); cuando exista en DB
+    //    condiciones.push(eq(silabo.estado, filtros.estado)); //cuando exista en DB
     // }
 
     const query = condiciones.length > 0 ? and(...condiciones) : undefined;

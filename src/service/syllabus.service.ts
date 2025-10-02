@@ -9,7 +9,7 @@ export class SyllabusService {
     estado?: string;
   }) {
     const syllabus = await this.syllabusRepo.findByNameCycleStatus(filtros);
-    if (!syllabus) throw new Error("Usuario no encontrado");
+    if (!syllabus) throw new Error("Silabo no encontrado");
     return syllabus;
   }
 }

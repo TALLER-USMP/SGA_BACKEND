@@ -14,7 +14,7 @@ export class SyllabusController implements BaseController {
   @route("/")
   async list(
     req: HttpRequest,
-    context: InvocationContext
+    context: InvocationContext,
   ): Promise<HttpResponseInit> {
     const nombre = req.query.get("nombre") || undefined;
     const ciclo = req.query.get("ciclo") || undefined;
@@ -43,7 +43,7 @@ export class SyllabusController implements BaseController {
   @route("/{id}")
   async getOne(
     req: HttpRequest,
-    context: InvocationContext
+    context: InvocationContext,
   ): Promise<HttpResponseInit> {
     throw new Error("Method not implemented.");
   }
@@ -51,7 +51,7 @@ export class SyllabusController implements BaseController {
   @route("/", "POST")
   async create(
     req: HttpRequest,
-    context: InvocationContext
+    context: InvocationContext,
   ): Promise<HttpResponseInit> {
     throw new Error("Method not implemented.");
   }
@@ -59,7 +59,7 @@ export class SyllabusController implements BaseController {
   @route("/", "PUT")
   async update(
     req: HttpRequest,
-    context: InvocationContext
+    context: InvocationContext,
   ): Promise<HttpResponseInit> {
     throw new Error("Method not implemented.");
   }
@@ -67,7 +67,7 @@ export class SyllabusController implements BaseController {
   @route("/", "DELETE")
   async delete(
     req: HttpRequest,
-    context: InvocationContext
+    context: InvocationContext,
   ): Promise<HttpResponseInit> {
     throw new Error("Method not implemented.");
   }
