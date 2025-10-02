@@ -4,6 +4,7 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { BaseController } from "../../base-controller";
+import { SyllabusService } from "../../service/syllabus.service";
 import { route, controller } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
 import { SilaboRepository } from "../../repositories/silabo.repository";
@@ -17,6 +18,7 @@ interface UpdateRecursosDidacticosDto {
 export class SyllabusController implements BaseController {
   private repo = new SilaboRepository();
   private repoFuente = new SilaboFuenteRepository();
+  private syllabusService = new SyllabusService();
 
   @route("/")
   async list(
@@ -36,7 +38,24 @@ export class SyllabusController implements BaseController {
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    throw new Error("Method not implemented.");
+    // try {
+    const id = req.params.id;
+    const response = await this.syllabusService.getOne(id);
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        response,
+      },
+    };
+    // } catch (e) {
+    //   return {
+    //     status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+    //     jsonBody: {
+    //       code: "INTERAL_SERVER_ERROR",
+    //       message: "Un error desconocido ha ocurrido",
+    //     },
+    //   };
+    // }
   }
 
   @route("/", "POST")
