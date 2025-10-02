@@ -7,6 +7,7 @@ import { BaseController } from "../../base-controller";
 import { route, controller } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
 import { SilaboRepository } from "../../repositories/silabo.repository";
+import { SilaboFuenteRepository } from "../../repositories/silaboFuente.repository";
 
 interface UpdateRecursosDidacticosDto {
   recursosDidacticos: string;
@@ -15,6 +16,7 @@ interface UpdateRecursosDidacticosDto {
 @controller("syllabus")
 export class SyllabusController implements BaseController {
   private repo = new SilaboRepository();
+  private repoFuente = new SilaboFuenteRepository();
 
   @route("/")
   async list(
@@ -114,5 +116,56 @@ export class SyllabusController implements BaseController {
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
     throw new Error("Method not implemented.");
+  }
+
+  // PUT /api/syllabus/{id}/fuentes-consulta
+
+  @route("/{id}/fuentes-consulta", "PUT")
+  async updateFuente(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    try {
+      const id = Number(req.params?.id);
+
+      if (isNaN(id) || id <= 0) {
+        return {
+          status: STATUS_CODES.BAD_REQUEST,
+          jsonBody: { error: "ID inválido" },
+        };
+      }
+
+      const body = await req.json();
+
+      if (!body || Object.keys(body).length === 0) {
+        return {
+          status: STATUS_CODES.BAD_REQUEST,
+          jsonBody: { error: "Debe enviar al menos un campo para actualizar" },
+        };
+      }
+
+      const updated = await this.repoFuente.updateFuente(id, body);
+
+      if (!updated) {
+        return {
+          status: STATUS_CODES.NOT_FOUND,
+          jsonBody: { error: "Fuente de consulta no encontrada" },
+        };
+      }
+
+      return {
+        status: STATUS_CODES.OK,
+        jsonBody: {
+          message: "Fuente de consulta actualizada correctamente",
+          data: updated,
+        },
+      };
+    } catch (error: any) {
+      context.error("Error al actualizar fuente de consulta:", error);
+      return {
+        status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+        jsonBody: { error: "Error interno del servidor" },
+      };
+    }
   }
 }
