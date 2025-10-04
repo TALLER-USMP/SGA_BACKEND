@@ -22,3 +22,4 @@ _Pasos o comandos para validar este cambio localmente_
 # ejemplo
 npm install
 npm run dev
+```
