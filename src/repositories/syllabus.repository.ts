@@ -95,4 +95,36 @@ export class SyllabusRepository {
         }
       : null;
   }
+
+  async updateCompetencies(silaboId: number, data: any[]) {
+    if (!this.db) {
+      throw new Error("Database connection is not initialized.");
+    }
+    // Primero eliminamos las competencias actuales del sílabo
+    /*await this.db
+      .delete(silaboCompetencia)
+      .where(eq(silaboCompetencia.silaboId, silaboId));*/
+
+    // Luego insertamos las nuevas competencias y componentes
+    // for (const comp of data) {
+    //   const [insertedCompetencia] = await this.db
+    //     .insert(silaboCompetencia)
+    //     .values({
+    //       silaboId,
+    //       competencia: comp.competencia,
+    //     })
+    //     .returning({ id: silaboCompetencia.id });
+
+    //   if (comp.componentes && comp.componentes.length > 0) {
+    //     await this.db.insert(silaboComponente).values(
+    //       comp.componentes.map((c: string) => ({
+    //         competenciaId: insertedCompetencia.id,
+    //         componente: c,
+    //       }))
+    //     );
+    //   }
+    // }
+
+    return { message: "Competencias actualizadas correctamente" };
+  }
 }
