@@ -8,7 +8,10 @@ import { SyllabusService } from "../../service/syllabus.service";
 import { route, controller } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
 import { SilaboRepository } from "../../repositories/silabo.repository";
+import { SyllabusStateService } from "../../service/syllabusState.service";
+
 import { SilaboFuenteRepository } from "../../repositories/silaboFuente.repository";
+import { log } from "console";
 
 interface UpdateRecursosDidacticosDto {
   recursosDidacticos: string;
@@ -19,6 +22,7 @@ export class SyllabusController implements BaseController {
   private repo = new SilaboRepository();
   private repoFuente = new SilaboFuenteRepository();
   private syllabusService = new SyllabusService();
+  private syllabusStateService = new SyllabusStateService();
 
   @route("/")
   async list(
@@ -38,24 +42,42 @@ export class SyllabusController implements BaseController {
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    // try {
     const id = req.params.id;
     const response = await this.syllabusService.getOne(id);
+
+    if (!response) {
+      return {
+        status: STATUS_CODES.NOT_FOUND,
+        jsonBody: { message: "Silabo no encontrado" },
+      };
+    }
     return {
       status: STATUS_CODES.OK,
       jsonBody: {
         response,
       },
     };
-    // } catch (e) {
-    //   return {
-    //     status: STATUS_CODES.INTERNAL_SERVER_ERROR,
-    //     jsonBody: {
-    //       code: "INTERAL_SERVER_ERROR",
-    //       message: "Un error desconocido ha ocurrido",
-    //     },
-    //   };
-    // }
+  }
+
+  @route("/{id}/estado")
+  async getState(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = req.params.id;
+    const response = await this.syllabusStateService.getState(id);
+
+    if (!response) {
+      return {
+        status: STATUS_CODES.NOT_FOUND,
+        jsonBody: { message: "Estado del Silabo " + id + " no encontrado" },
+      };
+    }
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: { message: "Estado del silabo " + id, state: response },
+    };
   }
 
   @route("/", "POST")
