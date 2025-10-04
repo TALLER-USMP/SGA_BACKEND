@@ -25,12 +25,28 @@ export class SyllabusController implements BaseController {
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    return {
-      status: STATUS_CODES.OK,
-      jsonBody: {
-        message: "acceso permitido",
-      },
-    };
+    const nombre = req.query.get("nombre") || undefined;
+    const ciclo = req.query.get("ciclo") || undefined;
+    const estado = req.query.get("estado") || undefined;
+    try {
+      const data = await this.syllabusService.searchSyllabus({
+        nombre,
+        ciclo,
+        estado,
+      });
+
+      return {
+        status: STATUS_CODES.OK,
+        jsonBody: data,
+      };
+    } catch (e) {
+      return {
+        status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+        jsonBody: {
+          message: "INTERNAL_SERVER_ERROR",
+        },
+      };
+    }
   }
 
   @route("/{id}")
