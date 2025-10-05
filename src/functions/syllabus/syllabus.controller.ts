@@ -57,21 +57,19 @@ export class SyllabusController implements BaseController {
     // try {
     const id = req.params.id;
     const response = await this.syllabusService.getOne(id);
+    if (!response) {
+      return {
+        status: STATUS_CODES.NOT_FOUND,
+        jsonBody: { error: "Silabo no encontrado" },
+      };
+    }
+
     return {
       status: STATUS_CODES.OK,
       jsonBody: {
         response,
       },
     };
-    // } catch (e) {
-    //   return {
-    //     status: STATUS_CODES.INTERNAL_SERVER_ERROR,
-    //     jsonBody: {
-    //       code: "INTERAL_SERVER_ERROR",
-    //       message: "Un error desconocido ha ocurrido",
-    //     },
-    //   };
-    // }
   }
 
   @route("/", "POST")
@@ -143,6 +141,28 @@ export class SyllabusController implements BaseController {
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
     throw new Error("Method not implemented.");
+  }
+
+  @route("/{id}/competencias", "PUT")
+  async updateCompetencies(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const body = await Array(req.json());
+
+    const result = await this.syllabusService.updateCompetencias(id, body);
+    if (!result) {
+      return {
+        status: STATUS_CODES.NOT_FOUND,
+        jsonBody: { error: "Silabo no encontrado" },
+      };
+    }
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: result,
+    };
   }
 
   @route("/", "DELETE")
