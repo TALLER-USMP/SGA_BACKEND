@@ -47,6 +47,12 @@ export class UserRepository {
       console.log("find oid or tenant id, don't exist");
       return null;
     }
+
+    if (result.length > 1) {
+      console.warn(
+        `⚠️ Multiple users found for OID ${oid} and Tenant ${tenantId}`,
+      );
+    }
     return result[0];
   }
 
@@ -120,5 +126,40 @@ export class UserRepository {
     }
 
     return result[0];
+  }
+
+  async create({
+    correo,
+    categoriaUsuarioId,
+    azureOid,
+    tenantId,
+    activo = true,
+  }: {
+    correo: string;
+    categoriaUsuarioId: number;
+    azureOid: string;
+    tenantId: string;
+    activo?: boolean;
+  }) {
+    if (!this.db) {
+      throw new Error("Database connection is not initialized.");
+    }
+
+    const now = new Date().toISOString();
+
+    const result = await this.db
+      .insert(usuarioAutorizado)
+      .values({
+        correo,
+        azureAdObjectId: azureOid,
+        tenantId,
+        activo,
+        categoriaUsuarioId: categoriaUsuarioId,
+        creadoEn: now,
+        actualizadoEn: now,
+      })
+      .returning();
+
+    return result.length ? result[0] : null;
   }
 }

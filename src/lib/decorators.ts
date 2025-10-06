@@ -2,9 +2,9 @@ import { HttpMethod, HttpRequest, InvocationContext } from "@azure/functions";
 import { BaseController } from "../base-controller";
 import { STATUS_CODES } from "../status-codes";
 import { MetadataStore } from "./metadatastore";
-import { verifyToken } from "../utils/VerifyToken";
-import { AuthLevel, mapAzureTokenToAuthPayload } from "../zod/user.schema";
+import { SessionService } from "../service/session.service";
 import { UserRepository } from "../repositories/user.repository";
+import { extractCookie } from "../utils/cookie.utils";
 
 export type RouteDefinition = {
   path: string;
@@ -56,38 +56,45 @@ export function route(path: string, method: HttpMethod = "GET") {
 
 const userRepo = new UserRepository();
 
-export function auth(levels: string[]) {
+export function auth(allowedRoles: string[]) {
   return (target: any, handlerKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
 
     descriptor.value = async (req: HttpRequest, ctx: InvocationContext) => {
       try {
-        // Validate token
+        // Obtener token desde Header o Cookie
         const authHeader =
           req.headers.get("authorization") || req.headers.get("Authorization");
-        if (!authHeader?.startsWith("Bearer ")) {
+        const cookieHeader = req.headers.get("cookie");
+
+        const token = authHeader?.startsWith("Bearer ")
+          ? authHeader.substring(7)
+          : extractCookie(cookieHeader, "session_token");
+
+        if (!token) {
           return {
             status: STATUS_CODES.UNAUTHORIZED,
-            jsonBody: { message: "Token no proporcionado o inválido" },
+            jsonBody: { message: "Token de sesión no proporcionado" },
           };
         }
 
-        const token = authHeader.substring(7);
-        let decoded: any;
-        try {
-          decoded = await verifyToken(token);
-        } catch (err) {
+        const decoded = SessionService.verifySessionToken(token);
+        if (!decoded || typeof decoded === "string") {
           return {
             status: STATUS_CODES.UNAUTHORIZED,
             jsonBody: { message: "Token inválido o expirado" },
           };
         }
 
-        // Buscar usuario en BD
-        const azureOid = decoded.oid;
-        const tenantId = decoded.tid;
+        const { oid, tenantId } = decoded as any;
+        if (!oid || !tenantId) {
+          return {
+            status: STATUS_CODES.UNAUTHORIZED,
+            jsonBody: { message: "Token sin información válida de usuario" },
+          };
+        }
 
-        const user = await userRepo.findWithCategory(azureOid, tenantId);
+        const user = await userRepo.findWithCategory(oid, tenantId);
         if (!user) {
           return {
             status: STATUS_CODES.UNAUTHORIZED,
@@ -95,7 +102,6 @@ export function auth(levels: string[]) {
           };
         }
 
-        // Validar estado activo
         if (!user.activo) {
           return {
             status: STATUS_CODES.FORBIDDEN,
@@ -103,22 +109,23 @@ export function auth(levels: string[]) {
           };
         }
 
-        // Validar rol desde categoria_usuario
         const role = user.categoria?.nombre_categoria;
-        if (!role || !levels.includes(role)) {
+        if (!role || !allowedRoles.includes(role)) {
           return {
             status: STATUS_CODES.FORBIDDEN,
             jsonBody: {
-              message: `No tienes permiso para acceder. Rol requerido: ${levels.join(", ")}`,
+              message: `Acceso denegado. Rol requerido: ${allowedRoles.join(
+                ", ",
+              )}`,
             },
           };
         }
 
-        ((ctx as any).extra ??= {}).user = user;
+        (ctx as any).user = user;
 
         return await originalMethod(req, ctx);
-      } catch (err) {
-        console.error("Error en decorador auth:", err);
+      } catch (error) {
+        console.error("Error en decorador @auth:", error);
         return {
           status: STATUS_CODES.INTERNAL_SERVER_ERROR,
           jsonBody: { message: "Error interno de autenticación" },
