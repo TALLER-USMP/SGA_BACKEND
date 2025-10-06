@@ -47,5 +47,5 @@ __blobstorage__
 __queuestorage__
 __azurite_db*__.json
 
-# Adding CODEOWNERS file to .gitignore
+# Adding CODEOWNERS file
 .github/CODEOWNERS
