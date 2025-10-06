@@ -1,6 +1,9 @@
 # CODEOWNERS
+
 # Este archivo define los propietarios de código para revisiones automáticas en pull requests
+
 # Más información: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Regla global para todos los archivos
-* @JeanClix @JeanVentura10 @carlofav12 @Andramir99 @Julio3008 @RobinsonHL18 @melivezla @tatiana17899
+
+- @leonardoPBF @JeanClix @carlofav12 @melivezla @tatiana17899 @Andramir99 @Julio3008 @RobinsonHL18
