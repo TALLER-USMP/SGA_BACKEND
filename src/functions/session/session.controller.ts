@@ -48,19 +48,19 @@ export class SessionController implements BaseController {
 
       return {
         status: STATUS_CODES.OK,
+        cookies: [
+          {
+            name: "session_token",
+            value: sessionToken,
+            httpOnly: true, // 🔒 No accesible desde JS
+            secure: true, // 🔐 Solo por HTTPS
+            sameSite: "None", // 🌐 Permitir en CORS
+            path: "/",
+            maxAge: 60 * 60, // 1 hora
+          },
+        ],
         jsonBody: {
           message: "Sesión creada correctamente",
-          cookies: [
-            {
-              name: "session_token",
-              value: sessionToken,
-              httpOnly: true, // 🔒 No accesible desde JS
-              secure: true, // 🔐 Solo por HTTPS
-              sameSite: "Strict",
-              path: "/",
-              maxAge: 60 * 60, // 1 hora
-            },
-          ],
           jsonBody: {
             message: "Sesión creada correctamente",
             user: { nombre: user.displayName, correo: user.correo },
