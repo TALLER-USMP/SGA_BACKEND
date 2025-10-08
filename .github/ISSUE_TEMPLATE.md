@@ -30,5 +30,4 @@ _¿Qué se debe realizar?_
 ---
 
 ### 📎 Notas adicionales
-
 _Agregar cualquier detalle extra, enlace o imagen que ayude a entender mejor la tarea_
