@@ -1,34 +1,50 @@
 import { verifyTokenWithMsal } from "../utils/verifyTokenAzureMsal.utils";
-import { AzurePayloadSchema } from "../zodSchemas/azurePayLoad.schema";
-import { UserRepository } from "../repositories/user.repository";
+import { AzurePayloadSchema } from "../types/auth.types";
+import { ROLES } from "../constants";
+import { AppError } from "../error";
+import { userRepo } from "../repositories/user.repository";
+import jwt from "jsonwebtoken";
 
-export class AuthService {
-  private userRepo = new UserRepository();
+class AuthService {
+  createSessionToken(user: any) {
+    return jwt.sign(
+      {
+        id: user.id,
+        oid: user.azureOid,
+        tenantId: user.tenantId,
+        email: user.correo,
+        displayName: user.displayName,
+      },
+      process.env.SESSION_SECRET!,
+      { expiresIn: "1h" },
+    );
+  }
 
+  verifySessionToken(token: string) {
+    try {
+      return jwt.verify(token, process.env.SESSION_SECRET!);
+    } catch (error) {
+      console.warn("Token de sesión inválido:", (error as Error).message);
+      return null;
+    }
+  }
   async authenticateWithAzure(token: string) {
-    // 1️⃣ Verificar el token con MSAL (contacta a Azure AD)
     const msalAccount = await verifyTokenWithMsal(token);
-
-    // 2️⃣ Validar y transformar con Zod
     if (!msalAccount) {
-      throw new Error(
-        "No se pudo verificar el token: msalAccount es null o undefined",
+      throw new AppError(
+        "MFAuthError",
+        "NOT_FOUND",
+        "No se pudo validar con Microsoft",
       );
     }
-
-    const parsed = AzurePayloadSchema.safeParse({
+    const parsed = AzurePayloadSchema.parse({
       oid: msalAccount.homeAccountId?.split(".")[0],
       tid: msalAccount.tenantId,
       name: msalAccount.name,
-      upn: msalAccount.username, // el "email"
+      upn: msalAccount.username,
     });
 
-    if (!parsed.success) {
-      console.error(parsed.error.flatten());
-      throw new Error("Token MSAL inválido o con datos incompletos");
-    }
-
-    const { oid, tid, upn, name } = parsed.data;
+    const { oid, tid, upn, name } = parsed;
 
     // 3️⃣ Buscar o crear el usuario interno
     const user = await this.findOrCreateUser({
@@ -38,13 +54,16 @@ export class AuthService {
       tenantId: tid,
     });
 
+    // enviar datos al event bus o event grid o lo que sea que estemos usando
+    ``;
+
     return user;
   }
 
   /**
    * Busca el usuario por OID o correo.
    * Si lo encuentra por correo, actualiza su OID y tenantId.
-   * Si no existe, crea un nuevo registro.
+   * Si no existe, crea un nuevo registro en la tabla usuario autorizado (user)
    */
   private async findOrCreateUser(data: {
     azureOid: string;
@@ -53,35 +72,19 @@ export class AuthService {
     tenantId: string;
   }) {
     const { azureOid, correo, displayName, tenantId } = data;
+    let user = await userRepo.findByEmail(correo!);
 
-    // 1️⃣ Buscar por Azure OID + tenant
-    let user = await this.userRepo.findByOidAndTenant(azureOid, tenantId);
-
-    // 2️⃣ Si no existe, intentar encontrarlo por correo
-    if (!user && correo) {
-      user = await this.userRepo.findByEmail(correo);
-
-      if (user) {
-        await this.userRepo.updateOidAndTenant(user.id, azureOid, tenantId);
-        console.log(`🔄 Usuario vinculado con OID ${azureOid}`);
-      }
-    }
-
-    // aqui falta añador nombre en la bd y displayName que se obtiene del payload de azure
     if (!user) {
-      user = await this.userRepo.create({
+      user = await userRepo.create({
         correo: correo ?? "",
-        categoriaUsuarioId: 1, // o el ID por defecto de la categoría "usuario base"
+        categoriaUsuarioId: ROLES.PROFESSORS,
         azureOid: azureOid,
         tenantId,
         activo: true,
       });
-      console.log(`🆕 Usuario creado: ${correo}`);
     }
 
-    if (user) {
-      await this.userRepo.updateLastAccess(user.id);
-    }
+    await userRepo.updateLastAccess(user!.id);
 
     return {
       ...user,
@@ -91,3 +94,5 @@ export class AuthService {
     };
   }
 }
+
+export const authService = new AuthService();

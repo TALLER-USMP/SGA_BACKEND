@@ -4,13 +4,12 @@ import {
   InvocationContext,
 } from "@azure/functions";
 import { BaseController } from "../../base-controller";
-import { auth, route, controller } from "../../lib/decorators";
+import { route, controller } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
 
 @controller("syllabus")
 export class SyllabusController implements BaseController {
   @route("/")
-  @auth(["admin", "profesor"])
   async list(
     req: HttpRequest,
     context: InvocationContext,

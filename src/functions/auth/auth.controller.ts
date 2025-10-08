@@ -1,64 +1,36 @@
 import {
   HttpRequest,
-  InvocationContext,
   HttpResponseInit,
+  InvocationContext,
 } from "@azure/functions";
 import { BaseController } from "../../base-controller";
 import { controller, route } from "../../lib/decorators";
+import { authService } from "../../service/auth.service";
 import { STATUS_CODES } from "../../status-codes";
-import jwt from "jsonwebtoken";
-import { AuthService } from "../../service/auth.service";
-import { AzurePayloadSchema } from "../../zodSchemas/azurePayLoad.schema"; // 👈 validamos con Zod
-import { z } from "zod";
-import { SessionService } from "../../service/session.service";
 import { extractCookie } from "../../utils/cookie.utils";
+import { AppError } from "../../error";
 
-@controller("session")
-export class SessionController implements BaseController {
-  private authService = new AuthService();
-
+@controller("auth")
+export class AuthController implements BaseController {
   @route("/create", "POST")
-  async sessionCreate(
-    req: HttpRequest,
-    ctx: InvocationContext,
-  ): Promise<HttpResponseInit> {
-    // 🔹 1. Leer token desde Authorization header o JSON body
+  async create(req: HttpRequest): Promise<HttpResponseInit> {
     const authHeader =
       req.headers.get("authorization") || req.headers.get("Authorization");
     const bearerToken =
       authHeader && authHeader.startsWith("Bearer ")
         ? authHeader.substring(7)
         : null;
-
-    const body = (await req.json().catch(() => ({}))) as {
-      access_token?: string;
-    };
-    const token = bearerToken || body?.access_token;
-
+    const token = bearerToken;
     if (!token) {
       return {
         status: STATUS_CODES.UNAUTHORIZED,
         jsonBody: { error: "Falta el token de acceso" },
       };
     }
-
     try {
-      const user = await this.authService.authenticateWithAzure(token);
-      const sessionToken = SessionService.createSessionToken(user);
-
+      const user = await authService.authenticateWithAzure(token);
       return {
         status: STATUS_CODES.OK,
-        cookies: [
-          {
-            name: "session_token",
-            value: sessionToken,
-            httpOnly: true, // 🔒 No accesible desde JS
-            secure: true, // 🔐 Solo por HTTPS
-            sameSite: "None", // 🌐 Permitir en CORS
-            path: "/",
-            maxAge: 60 * 60, // 1 hora
-          },
-        ],
         jsonBody: {
           message: "Sesión creada correctamente",
           jsonBody: {
@@ -68,11 +40,19 @@ export class SessionController implements BaseController {
         },
       };
     } catch (error) {
-      ctx.error(`Error en sessionCreate: ${error}`);
+      if (error instanceof AppError) {
+        return {
+          status: STATUS_CODES.UNAUTHORIZED,
+          jsonBody: {
+            name: error.name,
+            message: error.message,
+          },
+        };
+      }
       return {
         status: STATUS_CODES.UNAUTHORIZED,
         jsonBody: {
-          error: error instanceof Error ? error.message : "Error desconocido",
+          error: "Error desconocido",
           message: "No se pudo crear la sesión",
         },
       };
@@ -80,15 +60,24 @@ export class SessionController implements BaseController {
   }
 
   @route("/me")
-  async sessionMe(
-    request: HttpRequest,
-    context: InvocationContext,
-  ): Promise<HttpResponseInit> {
+  async getOne(request: HttpRequest): Promise<HttpResponseInit> {
     const cookie = request.headers.get("cookie");
+
     if (!cookie) {
+      const sessionId = request.query.get("sessionId");
+      // sessionId  y por el message type = user_loggedin
+      const messageFinded = null;
+      if (!messageFinded) {
+        return {
+          status: STATUS_CODES.UNAUTHORIZED,
+          jsonBody: { message: "No autenticado" },
+        };
+      }
+
+      // CREAR COOKIE
       return {
-        status: STATUS_CODES.UNAUTHORIZED,
-        jsonBody: { message: "No autenticado" },
+        status: STATUS_CODES.OK,
+        jsonBody: messageFinded,
       };
     }
 
@@ -100,7 +89,7 @@ export class SessionController implements BaseController {
       };
     }
 
-    const decoded = SessionService.verifySessionToken(sessionToken);
+    const decoded = authService.verifySessionToken(sessionToken);
     if (!decoded) {
       return {
         status: STATUS_CODES.UNAUTHORIZED,
@@ -114,8 +103,8 @@ export class SessionController implements BaseController {
     };
   }
 
-  @route("/logout")
-  async sessionLogout(): Promise<HttpResponseInit> {
+  @route("/logout", "POST")
+  async logout(): Promise<HttpResponseInit> {
     return {
       status: STATUS_CODES.OK,
       cookies: [
@@ -133,16 +122,10 @@ export class SessionController implements BaseController {
     };
   }
 
-  // Métodos no implementados
   list(): Promise<HttpResponseInit> {
     throw new Error("Not implemented");
   }
-  getOne(): Promise<HttpResponseInit> {
-    throw new Error("Not implemented");
-  }
-  create(): Promise<HttpResponseInit> {
-    throw new Error("Not implemented");
-  }
+
   update(): Promise<HttpResponseInit> {
     throw new Error("Not implemented");
   }

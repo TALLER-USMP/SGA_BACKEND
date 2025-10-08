@@ -2,26 +2,18 @@ import { eq, and } from "drizzle-orm";
 import { getDb } from "../db/index";
 import { categoriaUsuario, usuarioAutorizado } from "../../drizzle/schema";
 
-export class UserRepository {
+class UserRepository {
   private db = getDb();
 
   async findByEmail(email: string) {
-    if (!this.db) {
-      throw new Error("Database connection is not initialized.");
-    }
-    const result = await this.db
-      .select()
+    const result = await this.db!.select()
       .from(usuarioAutorizado)
       .where(eq(usuarioAutorizado.correo, email));
     return result.length ? result[0] : null;
   }
 
   async findById(id: string) {
-    if (!this.db) {
-      throw new Error("Database connection is not initialized.");
-    }
-    const result = await this.db
-      .select()
+    const result = await this.db!.select()
       .from(usuarioAutorizado)
       .where(eq(usuarioAutorizado.id, Number(id)));
 
@@ -29,12 +21,7 @@ export class UserRepository {
   }
 
   async findByOidAndTenant(oid: string, tenantId: string) {
-    if (!this.db) {
-      throw new Error("Database connection is not initialized.");
-    }
-
-    const result = await this.db
-      .select()
+    const result = await this.db!.select()
       .from(usuarioAutorizado)
       .where(
         and(
@@ -44,24 +31,14 @@ export class UserRepository {
       );
 
     if (result.length === 0) {
-      console.log("find oid or tenant id, don't exist");
       return null;
     }
 
-    if (result.length > 1) {
-      console.warn(
-        `⚠️ Multiple users found for OID ${oid} and Tenant ${tenantId}`,
-      );
-    }
     return result[0];
   }
 
   async updateOidAndTenant(id: number, oid: string, tenantId: string) {
-    if (!this.db) {
-      throw new Error("Database connection is not initialized.");
-    }
-    const result = await this.db
-      .update(usuarioAutorizado)
+    const result = await this.db!.update(usuarioAutorizado)
       .set({
         azureAdObjectId: oid,
         tenantId: tenantId,
@@ -74,11 +51,7 @@ export class UserRepository {
   }
 
   async updateLastAccess(id: number) {
-    if (!this.db) {
-      throw new Error("Database connection is not initialized.");
-    }
-    const result = await this.db
-      .update(usuarioAutorizado)
+    const result = await this.db!.update(usuarioAutorizado)
       .set({
         ultimoAccesoEn: new Date().toISOString(),
         actualizadoEn: new Date().toISOString(),
@@ -90,24 +63,19 @@ export class UserRepository {
   }
 
   async findWithCategory(oid: string, tenantId: string) {
-    if (!this.db) {
-      throw new Error("Database connection is not initialized.");
-    }
-
-    const result = await this.db
-      .select({
-        id: usuarioAutorizado.id,
-        correo: usuarioAutorizado.correo,
-        activo: usuarioAutorizado.activo,
-        azureOid: usuarioAutorizado.azureAdObjectId,
-        tenantId: usuarioAutorizado.tenantId,
-        categoria: {
-          id: categoriaUsuario.id,
-          nombre_categoria: categoriaUsuario.nombreCategoria,
-          descripcion: categoriaUsuario.descripcion,
-          activo: categoriaUsuario.activo,
-        },
-      })
+    const result = await this.db!.select({
+      id: usuarioAutorizado.id,
+      correo: usuarioAutorizado.correo,
+      activo: usuarioAutorizado.activo,
+      azureOid: usuarioAutorizado.azureAdObjectId,
+      tenantId: usuarioAutorizado.tenantId,
+      categoria: {
+        id: categoriaUsuario.id,
+        nombre_categoria: categoriaUsuario.nombreCategoria,
+        descripcion: categoriaUsuario.descripcion,
+        activo: categoriaUsuario.activo,
+      },
+    })
       .from(usuarioAutorizado)
       .leftJoin(
         categoriaUsuario,
@@ -141,14 +109,8 @@ export class UserRepository {
     tenantId: string;
     activo?: boolean;
   }) {
-    if (!this.db) {
-      throw new Error("Database connection is not initialized.");
-    }
-
     const now = new Date().toISOString();
-
-    const result = await this.db
-      .insert(usuarioAutorizado)
+    const result = await this.db!.insert(usuarioAutorizado)
       .values({
         correo,
         azureAdObjectId: azureOid,
@@ -163,3 +125,5 @@ export class UserRepository {
     return result.length ? result[0] : null;
   }
 }
+
+export const userRepo = new UserRepository();
