@@ -1,5 +1,4 @@
 import { HttpMethod } from "@azure/functions";
-import { BaseController } from "../base-controller";
 import { MetadataStore } from "./metadatastore";
 
 export type RouteDefinition = {
@@ -13,20 +12,15 @@ export type RouteDefinition = {
  * @param path Prefix of API route
  * @returns Class constructor
  */
-export function controller<T extends { new (...args: any[]): BaseController }>(
+export function controller<T extends { new (...args: any[]): any }>(
   prefix: string,
 ) {
   return (constructor: T) => {
     Reflect.defineMetadata("controller:prefix", prefix, constructor);
-
     const classes =
-      Reflect.getMetadata("controller:class", MetadataStore) || []; // 2
-    // [SylabussController, ReportController] // 2
-
-    classes.push(constructor); // [RerportController, SyllabusContrller, TestController] 3
-
-    Reflect.defineMetadata("controller:class", classes, MetadataStore); // actualizo // 3
-
+      Reflect.getMetadata("controller:class", MetadataStore) || [];
+    classes.push(constructor);
+    Reflect.defineMetadata("controller:class", classes, MetadataStore);
     return constructor;
   };
 }

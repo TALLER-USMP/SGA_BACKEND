@@ -1,19 +1,18 @@
 import {
-  pgTable,
-  index,
-  foreignKey,
-  serial,
-  integer,
-  varchar,
-  text,
-  numeric,
   boolean,
-  unique,
-  timestamp,
-  primaryKey,
+  foreignKey,
+  index,
+  integer,
+  numeric,
   pgEnum,
+  pgTable,
+  primaryKey,
+  serial,
+  text,
+  timestamp,
+  unique,
+  varchar,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 
 export const aporteEnum = pgEnum("aporte_enum", ["K", "R"]);
 
@@ -99,7 +98,7 @@ export const silaboFuente = pgTable(
     silaboId: integer("silabo_id").notNull(),
     tipo: varchar().notNull(),
     autores: varchar(),
-    anio: integer(),
+    año: integer("año"),
     titulo: text(),
     editorialRevista: varchar("editorial_revista"),
     ciudad: varchar(),
