@@ -37,5 +37,5 @@ export interface Deletable {
 }
 
 export type ReadOnlyController = Listable & Readable;
-export type WriteOnlyControlelr = Readable & Creatable & Updatable & Deletable;
-export type CrudController = ReadOnlyController & WriteOnlyControlelr;
+export type WriteOnlyController = Readable & Creatable & Updatable & Deletable;
+export type CrudController = ReadOnlyController & WriteOnlyController;

@@ -1,5 +1,12 @@
-import { HttpMethod } from "@azure/functions";
+import {
+  HttpMethod,
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from "@azure/functions";
 import { MetadataStore } from "./metadatastore";
+import { AppError } from "../error";
+import { STATUS_CODES } from "../status-codes";
 
 export type RouteDefinition = {
   path: string;
@@ -32,14 +39,43 @@ export function controller<T extends { new (...args: any[]): any }>(
  * @returns
  */
 export function route(path: string, method: HttpMethod = "GET") {
-  return (target: any, handlerKey: string) => {
+  return (target: any, handlerKey: string, descriptor: PropertyDescriptor) => {
     const routes: RouteDefinition[] =
       Reflect.getMetadata("controller:routes", target.constructor) || [];
+
     routes.push({
       handlerKey,
       method,
       path,
     });
     Reflect.defineMetadata("controller:routes", routes, target.constructor);
+    const originalMethod = descriptor.value;
+    descriptor.value = async function (
+      req: HttpRequest,
+      context: InvocationContext,
+    ): Promise<HttpResponseInit> {
+      try {
+        const result = await originalMethod(req, context);
+        return result;
+      } catch (error: unknown) {
+        context.log?.(`❌ [${method} ${path}]`, error);
+        if (error instanceof AppError) {
+          return {
+            status: error.statusCode,
+            jsonBody: {
+              message: error.message,
+              name: error.name,
+            },
+          };
+        }
+        return {
+          status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+          jsonBody: {
+            message: "Unknown error",
+            name: "UnknownError",
+          },
+        };
+      }
+    };
   };
 }

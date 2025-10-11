@@ -16,7 +16,7 @@ import {
 
 export const aporteEnum = pgEnum("aporte_enum", ["K", "R"]);
 
-export const silaboUnidadContenido = pgTable(
+export const syllabusUnitContent = pgTable(
   "silabo_unidad_contenido",
   {
     id: serial().primaryKey().notNull(),
@@ -32,13 +32,13 @@ export const silaboUnidadContenido = pgTable(
     ),
     foreignKey({
       columns: [table.silaboUnidadId],
-      foreignColumns: [silaboUnidad.id],
+      foreignColumns: [syllabusUnit.id],
       name: "silabo_unidad_contenido_silabo_unidad_id_fkey",
     }),
   ],
 );
 
-export const silaboUnidadSemana = pgTable(
+export const syllabusUnitWeek = pgTable(
   "silabo_unidad_semana",
   {
     id: serial().primaryKey().notNull(),
@@ -59,13 +59,13 @@ export const silaboUnidadSemana = pgTable(
     ),
     foreignKey({
       columns: [table.silaboUnidadId],
-      foreignColumns: [silaboUnidad.id],
+      foreignColumns: [syllabusUnit.id],
       name: "silabo_unidad_semana_silabo_unidad_id_fkey",
     }),
   ],
 );
 
-export const silaboEvaluacion = pgTable(
+export const syllabusEvaluation = pgTable(
   "silabo_evaluacion",
   {
     id: serial().primaryKey().notNull(),
@@ -85,13 +85,13 @@ export const silaboEvaluacion = pgTable(
     ),
     foreignKey({
       columns: [table.silaboId],
-      foreignColumns: [silabo.id],
+      foreignColumns: [syllabus.id],
       name: "silabo_evaluacion_silabo_id_fkey",
     }),
   ],
 );
 
-export const silaboFuente = pgTable(
+export const syllabusSource = pgTable(
   "silabo_fuente",
   {
     id: serial().primaryKey().notNull(),
@@ -113,13 +113,13 @@ export const silaboFuente = pgTable(
     ),
     foreignKey({
       columns: [table.silaboId],
-      foreignColumns: [silabo.id],
+      foreignColumns: [syllabus.id],
       name: "silabo_fuente_silabo_id_fkey",
     }),
   ],
 );
 
-export const categoriaUsuario = pgTable(
+export const userCategory = pgTable(
   "categoria_usuario",
   {
     id: serial().primaryKey().notNull(),
@@ -134,7 +134,7 @@ export const categoriaUsuario = pgTable(
   ],
 );
 
-export const funcionAplicacion = pgTable(
+export const functionApplication = pgTable(
   "funcion_aplicacion",
   {
     id: serial().primaryKey().notNull(),
@@ -149,7 +149,7 @@ export const funcionAplicacion = pgTable(
   ],
 );
 
-export const silabo = pgTable(
+export const syllabus = pgTable(
   "silabo",
   {
     id: serial().primaryKey().notNull(),
@@ -218,23 +218,23 @@ export const silabo = pgTable(
     ),
     foreignKey({
       columns: [table.actualizadoPorUsuarioAutorizadoId],
-      foreignColumns: [usuarioAutorizado.id],
+      foreignColumns: [authorizedUser.id],
       name: "silabo_actualizado_por_usuario_autorizado_id_fkey",
     }),
     foreignKey({
       columns: [table.asignadoAUsuarioAutorizadoId],
-      foreignColumns: [usuarioAutorizado.id],
+      foreignColumns: [authorizedUser.id],
       name: "silabo_asignado_a_usuario_autorizado_id_fkey",
     }),
     foreignKey({
       columns: [table.creadoPorUsuarioAutorizadoId],
-      foreignColumns: [usuarioAutorizado.id],
+      foreignColumns: [authorizedUser.id],
       name: "silabo_creado_por_usuario_autorizado_id_fkey",
     }),
   ],
 );
 
-export const silaboResultadoAprendizajeCurso = pgTable(
+export const syllabusCourseLearningOutcome = pgTable(
   "silabo_resultado_aprendizaje_curso",
   {
     id: serial().primaryKey().notNull(),
@@ -249,13 +249,13 @@ export const silaboResultadoAprendizajeCurso = pgTable(
     ),
     foreignKey({
       columns: [table.silaboId],
-      foreignColumns: [silabo.id],
+      foreignColumns: [syllabus.id],
       name: "silabo_resultado_aprendizaje_curso_silabo_id_fkey",
     }),
   ],
 );
 
-export const usuarioAutorizado = pgTable(
+export const authorizedUser = pgTable(
   "usuario_autorizado",
   {
     id: serial().primaryKey().notNull(),
@@ -271,14 +271,14 @@ export const usuarioAutorizado = pgTable(
   (table) => [
     foreignKey({
       columns: [table.categoriaUsuarioId],
-      foreignColumns: [categoriaUsuario.id],
+      foreignColumns: [userCategory.id],
       name: "usuario_autorizado_categoria_usuario_id_fkey",
     }),
     unique("usuario_autorizado_correo_key").on(table.correo),
   ],
 );
 
-export const silaboUnidad = pgTable(
+export const syllabusUnit = pgTable(
   "silabo_unidad",
   {
     id: serial().primaryKey().notNull(),
@@ -296,13 +296,13 @@ export const silaboUnidad = pgTable(
     ),
     foreignKey({
       columns: [table.silaboId],
-      foreignColumns: [silabo.id],
+      foreignColumns: [syllabus.id],
       name: "silabo_unidad_silabo_id_fkey",
     }),
   ],
 );
 
-export const categoriaFuncionAcceso = pgTable(
+export const userCategoryAccess = pgTable(
   "categoria_funcion_acceso",
   {
     categoriaUsuarioId: integer("categoria_usuario_id").notNull(),
@@ -311,12 +311,12 @@ export const categoriaFuncionAcceso = pgTable(
   (table) => [
     foreignKey({
       columns: [table.categoriaUsuarioId],
-      foreignColumns: [categoriaUsuario.id],
+      foreignColumns: [userCategory.id],
       name: "categoria_funcion_acceso_categoria_usuario_id_fkey",
     }),
     foreignKey({
       columns: [table.funcionAplicacionId],
-      foreignColumns: [funcionAplicacion.id],
+      foreignColumns: [functionApplication.id],
       name: "categoria_funcion_acceso_funcion_aplicacion_id_fkey",
     }),
     primaryKey({
@@ -326,7 +326,7 @@ export const categoriaFuncionAcceso = pgTable(
   ],
 );
 
-export const silaboAporteResultadoPrograma = pgTable(
+export const syllabusProgramOutcomeContribution = pgTable(
   "silabo_aporte_resultado_programa",
   {
     silaboId: integer("silabo_id").notNull(),
@@ -337,7 +337,7 @@ export const silaboAporteResultadoPrograma = pgTable(
   (table) => [
     foreignKey({
       columns: [table.silaboId],
-      foreignColumns: [silabo.id],
+      foreignColumns: [syllabus.id],
       name: "silabo_aporte_resultado_programa_silabo_id_fkey",
     }),
     primaryKey({
