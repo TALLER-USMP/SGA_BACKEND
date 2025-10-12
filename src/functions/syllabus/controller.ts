@@ -8,7 +8,7 @@ import { controller, route } from "../../lib/decorators";
 
 @controller("syllabus")
 export class SyllabusController implements Updatable {
-  // PUT http://localhost:3000/apu/syllabus/
+  // PUT http://localhost:2999/apu/syllabus/
   @route("/", "PUT")
   async update(
     req: HttpRequest,
