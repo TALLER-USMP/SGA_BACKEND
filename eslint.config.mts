@@ -6,10 +6,11 @@ import prettier from "eslint-config-prettier";
 import eslintPluginPrettier from "eslint-plugin-prettier"; 
 
 export default defineConfig([
-  globalIgnores(["dist", "node_modules", "out", "coverage"]),
+  globalIgnores(["dist", "node_modules", "out", "coverage", "drizzle"]),
 
   {
     files: ["**/*.ts"],
+    ignores: ["drizzle/**"],  // Agrega esta línea
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
