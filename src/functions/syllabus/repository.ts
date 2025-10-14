@@ -9,7 +9,7 @@ import {
 import { AppError } from "../../error";
 
 type Upsertable = { id?: number | string; text: string; order?: number | null };
-type CreateItem = { text: string; order?: number | null };
+type CreateItem = { text: string; order?: number | null; code?: string | null };
 
 const GROUP_COMP = "COMP";
 const GROUP_ACT = "ACT";
@@ -30,17 +30,27 @@ export class SyllabusRepository {
   listCompetencies(syllabusId: number | string) {
     const db = getDbOrThrow();
     return db
-      .select()
+      .select({
+        id: silaboCompetenciaCurso.id,
+        silaboId: silaboCompetenciaCurso.silaboId,
+        text: silaboCompetenciaCurso.descripcion,
+        code: silaboCompetenciaCurso.codigo,
+        order: silaboCompetenciaCurso.orden,
+      })
       .from(silaboCompetenciaCurso)
       .where(eq(silaboCompetenciaCurso.silaboId, Number(syllabusId)));
   }
 
-  async insertCompetencies(syllabusId: number | string, items: CreateItem[]) {
+  async insertCompetencies(
+    syllabusId: number | string,
+    items: { text: string; code: string | null; order: number | null }[],
+  ) {
     const db = getDbOrThrow();
     for (const it of items) {
       await db.insert(silaboCompetenciaCurso).values({
         silaboId: Number(syllabusId),
         descripcion: it.text,
+        codigo: it.code ?? null,
         orden: it.order ?? null,
       });
     }
@@ -82,6 +92,7 @@ export class SyllabusRepository {
         silaboId: syllabusId,
         grupo: GROUP_COMP,
         descripcion: it.text,
+        codigo: it.code ?? null,
         orden: it.order ?? null,
       });
     }
@@ -124,6 +135,7 @@ export class SyllabusRepository {
         silaboId: syllabusId,
         grupo: GROUP_ACT,
         descripcion: it.text,
+        codigo: it.code ?? null,
         orden: it.order ?? null,
       });
     }

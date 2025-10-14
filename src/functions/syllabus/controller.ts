@@ -19,7 +19,6 @@ export class SyllabusController implements Updatable {
       jsonBody: { ok: false, message: "Generic update() not implemented" },
     };
   }
-
   // --------- COMPETENCIAS ----------
   // GET /api/syllabus/:syllabusId/competencies
   @route("/{syllabusId}/competencies", "GET")

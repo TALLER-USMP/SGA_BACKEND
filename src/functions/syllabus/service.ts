@@ -1,26 +1,32 @@
 import { syllabusRepository } from "./repository";
-import { UpsertCompetenciesSchema } from "./types";
+import {
+  UpsertCompetenciesSchema,
+  CodeSchemaComponent, // letra.número (p.ej. g.1)
+  CodeSchemaAttitude, // solo letra (p.ej. b)
+  OrderSchema, // number | "123" | null -> number | undefined
+} from "./types";
 import { AppError } from "../../error";
 import { z } from "zod";
 
-// Zod para crear actitudes
-const CreateAttitudesSchema = z.object({
-  items: z
-    .array(
-      z.object({
-        text: z.string().min(1, "text requerido"),
-        order: z.number().int().nonnegative().optional(),
-      }),
-    )
-    .min(1, "items requerido"),
-});
-//COMPONENTES
 const CreateComponentsSchema = z.object({
   items: z
     .array(
       z.object({
         text: z.string().min(1, "text requerido"),
-        order: z.number().int().nonnegative().optional(),
+        code: CodeSchemaComponent.optional(), // g.1, g.2...
+        order: OrderSchema, // acepta 2, "2" o null
+      }),
+    )
+    .min(1, "items requerido"),
+});
+
+const CreateAttitudesSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        text: z.string().min(1, "text requerido"),
+        code: CodeSchemaAttitude.optional(), // b, c, f...
+        order: OrderSchema, // acepta 2, "2" o null
       }),
     )
     .min(1, "items requerido"),
@@ -41,56 +47,66 @@ export class SyllabusService {
       throw new AppError("NotFound", "NOT_FOUND", "Competency not found");
     return { ok: true, deleted };
   }
+
   async createCompetencies(syllabusId: string, body: unknown) {
     const parsed = UpsertCompetenciesSchema.safeParse(body);
     if (!parsed.success) {
-      // Formatea errores de Zod de forma amigable
       const details = parsed.error.issues
         .map((e) => `${e.path.join(".")}: ${e.message}`)
         .join("; ");
-      // Usa el mismo "code" que ya usas en otros métodos para coherencia
       throw new AppError("BadRequest", "BAD_REQUEST", details);
     }
 
-    // `order` ya viene normalizado como number | undefined
-    const items = parsed.data.items.map(({ text, order }) => ({
+    const items = parsed.data.items.map(({ text, order, code }) => ({
       text,
-      order: typeof order === "number" ? order : null, // tu repo espera null cuando no hay order
+      order: typeof order === "number" ? order : null,
+      code: code ?? null,
     }));
 
     const res = await syllabusRepository.insertCompetencies(syllabusId, items);
     return { ok: true as const, inserted: res.inserted };
   }
+
   // ---------- COMPONENTES ----------
   async getComponents(syllabusId: string) {
+    // <-- async (no "sync")
     const sId = Number(syllabusId);
     if (Number.isNaN(sId)) {
       throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
     }
     const rows = await syllabusRepository.listComponents(sId);
-    // devolver sin el prefijo [COMP]
-    return rows.map((r) => ({
+    // ideal si el repo ya alias: descripcion->text, codigo->code, orden->order
+    return rows.map((r: any) => ({
       id: r.id,
-      silaboId: r.silaboId,
-      text: r.descripcion, // ya viene limpiado del repo
-      order: r.orden ?? null,
+      silaboId: r.silaboId ?? r.silabo_id,
+      text: r.text ?? r.descripcion,
+      order: r.order ?? r.orden ?? null,
+      code: r.code ?? r.codigo ?? null,
     }));
   }
 
   async createComponents(syllabusId: string, body: unknown) {
     const parsed = CreateComponentsSchema.safeParse(body);
     if (!parsed.success) {
-      throw new AppError("BadRequest", "BAD_REQUEST", "Payload inválido");
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
     }
+
     const sId = Number(syllabusId);
     if (Number.isNaN(sId)) {
       throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
     }
-    const { inserted } = await syllabusRepository.insertComponents(
-      sId,
-      parsed.data.items,
-    );
-    return { ok: true, inserted };
+
+    const items = parsed.data.items.map(({ text, order, code }) => ({
+      text,
+      order: typeof order === "number" ? order : null,
+      code: code ?? null,
+    }));
+
+    const { inserted } = await syllabusRepository.insertComponents(sId, items);
+    return { ok: true as const, inserted };
   }
 
   async removeComponent(syllabusId: string, id: string) {
@@ -105,25 +121,54 @@ export class SyllabusService {
     }
     return { ok: true, deleted };
   }
+
   // ---------- CONTENIDOS ACTITUDINALES ----------
   async getAttitudes(syllabusId: string) {
-    return syllabusRepository.listAttitudes(Number(syllabusId));
+    const sId = Number(syllabusId);
+    if (Number.isNaN(sId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
+    }
+    const rows = await syllabusRepository.listAttitudes(sId);
+    return rows.map((r: any) => ({
+      id: r.id,
+      silaboId: r.silaboId ?? r.silabo_id,
+      text: r.descripcion ?? r.text,
+      order: r.orden ?? r.order ?? null,
+      code: r.code ?? r.codigo ?? null, // incluir code si el repo lo devuelve
+    }));
   }
 
   async createAttitudes(syllabusId: string, body: unknown) {
-    const { items } = CreateAttitudesSchema.parse(body);
-    const { inserted } = await syllabusRepository.insertAttitudes(
-      Number(syllabusId),
-      items,
-    );
+    const parsed = CreateAttitudesSchema.safeParse(body);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
+    const sId = Number(syllabusId);
+    if (Number.isNaN(sId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
+    }
+
+    const items = parsed.data.items.map(({ text, order, code }) => ({
+      text,
+      order: typeof order === "number" ? order : null,
+      code: code ?? null,
+    }));
+
+    const { inserted } = await syllabusRepository.insertAttitudes(sId, items);
     return { ok: true as const, inserted };
   }
 
   async removeAttitude(syllabusId: string, id: string) {
-    const { deleted } = await syllabusRepository.deleteAttitude(
-      Number(syllabusId),
-      Number(id),
-    );
+    const sId = Number(syllabusId);
+    const aId = Number(id);
+    if (Number.isNaN(sId) || Number.isNaN(aId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "Parámetros inválidos");
+    }
+    const { deleted } = await syllabusRepository.deleteAttitude(sId, aId);
     if (!deleted) {
       throw new AppError("NotFound", "NOT_FOUND", "Attitude not found");
     }
