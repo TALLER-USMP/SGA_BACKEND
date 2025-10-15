@@ -12,12 +12,6 @@ export interface MicrosoftJwtPayload {
   tid?: string;
 }
 
-export interface UserSessionData {
-  id: number;
-  correo: string;
-  rol: string; // Nombre de la categoría/rol
-}
-
 // Esquema para la entrada del POST /auth/login/
 export const loginRequestSchema = z.object({
   // El token de Microsoft debe ser una cadena no vacía
@@ -28,9 +22,10 @@ export type LoginRequest = z.infer<typeof loginRequestSchema>;
 // Esquema para la salida del POST /auth/login/ y GET /auth/me/
 export const userSessionSchema = z.object({
   id: z.number().int().positive(),
-  correo: z.string().email(),
-  rol: z.string().min(1),
+  email: z.email(),
+  role: z.number().int().positive(),
 });
+export type UserSession = z.infer<typeof userSessionSchema>;
 
 export const loginResponseSchema = z.object({
   token: z.string().min(1), // Nuestro JWT de sesión
