@@ -27,7 +27,10 @@ export const CodeSchemaComponent = z.preprocess(
   },
   z
     .string()
-    .regex(/^[a-z]\.[1-9]\d*$/, "code debe ser letra.numero, p. ej. g.1"),
+    .regex(
+      /^[a-z]\.[1-9]\d*$/,
+      "El codigo debe ser letra.numero, ejemplo g.1-g.2",
+    ),
 );
 
 /* code actitudinales: una letra */
@@ -35,7 +38,7 @@ export const CodeSchemaAttitude = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(/^[a-z]$/, "code debe ser una sola letra (a–z)");
+  .regex(/^[a-z]$/, "Ingresa el codigo (a-z)");
 
 /* COMPONENTES */
 export const CreateComponentsSchema = z.object({
@@ -43,12 +46,12 @@ export const CreateComponentsSchema = z.object({
     .array(
       z.object({
         id: IdSchema.optional(),
-        text: z.string().min(1, "text requerido"),
+        text: z.string().trim().min(1, "El campo 'text' es obligatorio"),
         code: CodeSchemaComponent.optional(), // ← tiene code
         order: OrderSchema,
       }),
     )
-    .min(1, "items requerido"),
+    .min(1, "El campo 'text' es obligatorio"),
 });
 export type CreateComponents = z.infer<typeof CreateComponentsSchema>;
 
@@ -58,7 +61,7 @@ export const CreateAttitudesSchema = z.object({
     .array(
       z.object({
         id: IdSchema.optional(),
-        text: z.string().min(1, "text requerido"),
+        text: z.string().min(1, "El campo 'text' es obligatorio"),
         code: CodeSchemaAttitude.optional(),
         order: OrderSchema,
       }),
@@ -74,16 +77,19 @@ export const UpsertCompetenciesSchema = z
       .array(
         z.object({
           id: IdSchema.optional(),
-          text: z.string().trim().min(1),
+          text: z.string().trim().min(1, "Deberias completar el campo 'text' "),
           // aquí puedes dejar solo letras/números simples:
           code: z
-            .union([z.string().trim().min(1), z.number()])
+            .union([
+              z.string().trim().min(1, "El campo 'code' es obligatorio"),
+              z.number(),
+            ])
             .transform((v) => v.toString().trim())
             .optional(),
           order: OrderSchema,
         }),
       )
-      .min(1, "items requerido"),
+      .min(1, "Deberias completar el campo 'text' "),
   })
   .strict();
 export type UpsertCompetencies = z.infer<typeof UpsertCompetenciesSchema>;

@@ -8,7 +8,7 @@ import { controller, route } from "../../lib/decorators";
 import { syllabusService } from "./service";
 @controller("syllabus")
 export class SyllabusController implements Updatable {
-  // Requisito de la interfaz Updatable (no lo usa el front ahora)
+  // Requisito de la interfaz Updatable
   @route("/", "PUT")
   async update(
     _req: HttpRequest,

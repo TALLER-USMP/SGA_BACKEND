@@ -12,7 +12,7 @@ const CreateComponentsSchema = z.object({
   items: z
     .array(
       z.object({
-        text: z.string().min(1, "text requerido"),
+        text: z.string().min(1, "Deberias completar el campo 'text' "),
         code: CodeSchemaComponent.optional(), // g.1, g.2...
         order: OrderSchema, // acepta 2, "2" o null
       }),
@@ -24,7 +24,7 @@ const CreateAttitudesSchema = z.object({
   items: z
     .array(
       z.object({
-        text: z.string().min(1, "text requerido"),
+        text: z.string().min(1, "Deberias completar el campo 'text' "),
         code: CodeSchemaAttitude.optional(), // b, c, f...
         order: OrderSchema, // acepta 2, "2" o null
       }),
@@ -45,7 +45,7 @@ export class SyllabusService {
     );
     if (!deleted)
       throw new AppError("NotFound", "NOT_FOUND", "Competency not found");
-    return { ok: true, deleted };
+    return { ok: true, deleted, message: "🗑️ El item fue eliminado con éxito" };
   }
 
   async createCompetencies(syllabusId: string, body: unknown) {
@@ -64,7 +64,11 @@ export class SyllabusService {
     }));
 
     const res = await syllabusRepository.insertCompetencies(syllabusId, items);
-    return { ok: true as const, inserted: res.inserted };
+    return {
+      ok: true as const,
+      inserted: res.inserted,
+      message: "El item se creo con éxito!!",
+    };
   }
 
   // ---------- COMPONENTES ----------
@@ -106,7 +110,11 @@ export class SyllabusService {
     }));
 
     const { inserted } = await syllabusRepository.insertComponents(sId, items);
-    return { ok: true as const, inserted };
+    return {
+      ok: true as const,
+      inserted,
+      message: "El item se creo con éxito!!",
+    };
   }
 
   async removeComponent(syllabusId: string, id: string) {
@@ -119,7 +127,7 @@ export class SyllabusService {
     if (!deleted) {
       throw new AppError("NotFound", "NOT_FOUND", "Component not found");
     }
-    return { ok: true, deleted };
+    return { ok: true, deleted, message: "🗑️ El item fue eliminado con éxito" };
   }
 
   // ---------- CONTENIDOS ACTITUDINALES ----------
@@ -159,7 +167,11 @@ export class SyllabusService {
     }));
 
     const { inserted } = await syllabusRepository.insertAttitudes(sId, items);
-    return { ok: true as const, inserted };
+    return {
+      ok: true as const,
+      inserted,
+      message: "El item se creo con éxito!!",
+    };
   }
 
   async removeAttitude(syllabusId: string, id: string) {
@@ -170,9 +182,17 @@ export class SyllabusService {
     }
     const { deleted } = await syllabusRepository.deleteAttitude(sId, aId);
     if (!deleted) {
-      throw new AppError("NotFound", "NOT_FOUND", "Attitude not found");
+      throw new AppError(
+        "NotFound",
+        "NOT_FOUND",
+        "No se encontró el elemento para eliminar",
+      );
     }
-    return { ok: true as const, deleted };
+    return {
+      ok: true as const,
+      deleted,
+      message: "🗑️ El item fue eliminado con éxito",
+    };
   }
 }
 
