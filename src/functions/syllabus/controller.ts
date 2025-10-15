@@ -6,6 +6,8 @@ import {
 import { Updatable } from "../../types";
 import { controller, route } from "../../lib/decorators";
 import { syllabusService } from "./service";
+import { AppError } from "../../error";
+import { isThrowStatement } from "typescript";
 
 @controller("syllabus")
 export class SyllabusController implements Updatable {
@@ -18,37 +20,29 @@ export class SyllabusController implements Updatable {
     throw new Error("not implemented");
   }
 
-  @route("/", "POST")
-  async create(
+  @route("/{id}/datos-generales", "GET")
+  async getGeneralData(
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const service = syllabusService;
-    const body = await req.json();
-    const idNewSyllabus = await service.createSyllabus(body);
-    if (!idNewSyllabus) {
-      return {
-        status: 500,
-      };
-    }
+    const id = Number(req.params.id);
+    const result = await syllabusService.getGeneralDataSyllabusById(id);
     return {
-      status: 201,
-      jsonBody: {
-        success: true,
-        message: "Sí­labo creado correctamente",
-        id: idNewSyllabus,
-      },
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(result, null, 2),
     };
   }
 
   @route("/{id}/sumilla", "PUT")
-  async registerSumilla(
+  async putSumilla(
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
     const service = syllabusService;
     const id = Number(req.params.id);
     const body = await req.json();
+
     const result = await service.registerSumilla(id, body);
     return {
       status: 200,

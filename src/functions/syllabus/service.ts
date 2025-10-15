@@ -1,6 +1,8 @@
 import { syllabusRepository } from "./repostory";
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
+import { AppError } from "../../error";
+import { ZodError } from "zod";
 
 class SyllabusService {
   private repository = syllabusRepository;
@@ -9,9 +11,28 @@ class SyllabusService {
     console.log(id);
   }
 
+  async getGeneralDataSyllabusById(id: number) {
+    const data = await syllabusRepository.findGeneralDataById(id);
+    if (!data) throw new AppError("Sílabo no encontrado", "NOT_FOUND");
+    return data;
+  }
+
   async createSyllabus(payload: unknown) {
-    // Validación con Zod
-    const data = SyllabusCreateSchema.parse(payload);
+    let data;
+    try {
+      // Validación con Zod
+      data = SyllabusCreateSchema.parse(payload);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "ValidationError",
+          "BAD_REQUEST",
+          "Datos inválidos: " +
+            error.issues.map((e: any) => e.message).join(", "),
+        );
+      }
+      throw error;
+    }
 
     // (Opcional) reglas de negocio antes del insert
     // Ej: validar que el código no esté repetido
@@ -23,8 +44,17 @@ class SyllabusService {
   }
 
   async registerSumilla(idSyllabus: number, payload: unknown) {
+    let sumilla;
     // ✅ Validar con Zod
-    const { sumilla } = SumillaSchema.parse(payload);
+    const parsed = SumillaSchema.parse(payload);
+    sumilla = parsed.sumilla;
+    if (!sumilla) {
+      throw new AppError(
+        "ValidationError",
+        "BAD_REQUEST",
+        "Datos inválidos: " + "Error en la sumilla",
+      );
+    }
 
     // ✅ Actualizar en la BD
     await this.repository.updateSumilla(idSyllabus, sumilla);

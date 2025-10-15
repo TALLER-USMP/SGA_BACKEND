@@ -1,13 +1,13 @@
 import {
   pgTable,
+  foreignKey,
   unique,
   serial,
   varchar,
-  text,
+  integer,
   boolean,
   timestamp,
-  foreignKey,
-  integer,
+  text,
   index,
   date,
   check,
@@ -16,6 +16,31 @@ import {
   primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+export const docente = pgTable(
+  "docente",
+  {
+    id: serial().primaryKey().notNull(),
+    correo: varchar().notNull(),
+    categoriaUsuarioId: integer("categoria_usuario_id").notNull(),
+    activo: boolean().default(true),
+    azureAdObjectId: varchar("azure_ad_object_id"),
+    tenantId: varchar("tenant_id"),
+    ultimoAccesoEn: timestamp("ultimo_acceso_en", { mode: "string" }),
+    gradoAcademico: varchar("grado_academico"),
+    creadoEn: timestamp("creado_en", { mode: "string" }).defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
+    nombreDocente: varchar("nombre_docente", { length: 100 }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.categoriaUsuarioId],
+      foreignColumns: [categoriaUsuario.id],
+      name: "docente_categoria_usuario_id_fkey",
+    }),
+    unique("docente_correo_key").on(table.correo),
+  ],
+);
 
 export const categoriaUsuario = pgTable(
   "categoria_usuario",
@@ -44,30 +69,6 @@ export const funcionAplicacion = pgTable(
   },
   (table) => [
     unique("funcion_aplicacion_nombre_funcion_key").on(table.nombreFuncion),
-  ],
-);
-
-export const docente = pgTable(
-  "docente",
-  {
-    id: serial().primaryKey().notNull(),
-    correo: varchar().notNull(),
-    categoriaUsuarioId: integer("categoria_usuario_id").notNull(),
-    activo: boolean().default(true),
-    azureAdObjectId: varchar("azure_ad_object_id"),
-    tenantId: varchar("tenant_id"),
-    ultimoAccesoEn: timestamp("ultimo_acceso_en", { mode: "string" }),
-    gradoAcademico: varchar("grado_academico"),
-    creadoEn: timestamp("creado_en", { mode: "string" }).defaultNow(),
-    actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.categoriaUsuarioId],
-      foreignColumns: [categoriaUsuario.id],
-      name: "docente_categoria_usuario_id_fkey",
-    }),
-    unique("docente_correo_key").on(table.correo),
   ],
 );
 
