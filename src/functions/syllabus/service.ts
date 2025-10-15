@@ -17,32 +17,6 @@ class SyllabusService {
     return data;
   }
 
-  async createSyllabus(payload: unknown) {
-    let data;
-    try {
-      // Validación con Zod
-      data = SyllabusCreateSchema.parse(payload);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        throw new AppError(
-          "ValidationError",
-          "BAD_REQUEST",
-          "Datos inválidos: " +
-            error.issues.map((e: any) => e.message).join(", "),
-        );
-      }
-      throw error;
-    }
-
-    // (Opcional) reglas de negocio antes del insert
-    // Ej: validar que el código no esté repetido
-    // const existing = await this.repository.findByCodigo(data.codigoAsignatura);
-    // if (existing) throw new Error("El sílabo ya existe para este código de asignatura.");
-
-    const idNewSyllabus = await this.repository.create(data);
-    return idNewSyllabus;
-  }
-
   async registerSumilla(idSyllabus: number, payload: unknown) {
     let sumilla;
     // ✅ Validar con Zod
