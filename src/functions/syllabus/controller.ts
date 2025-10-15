@@ -6,6 +6,9 @@ import {
 import { Updatable } from "../../types"; // tu interfaz
 import { controller, route } from "../../lib/decorators";
 import { syllabusService } from "./service";
+import { AppError } from "../../error";
+import { isThrowStatement } from "typescript";
+
 //1
 @controller("syllabus")
 export class SyllabusController implements Updatable {
@@ -20,6 +23,48 @@ export class SyllabusController implements Updatable {
       jsonBody: { ok: false, message: "Generic update() not implemented" },
     };
   }
+
+  @route("/", "POST")
+  async create(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const service = syllabusService;
+    const body = await req.json();
+    const idNewSyllabus = await service.createSyllabus(body);
+    if (!idNewSyllabus) {
+      return {
+        status: 500,
+      };
+    }
+    return {
+      status: 201,
+      jsonBody: {
+        success: true,
+        message: "Sí­labo creado correctamente",
+        id: idNewSyllabus,
+      },
+    };
+  }
+
+  @route("/{id}/sumilla", "PUT")
+  async registerSumilla(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const service = syllabusService;
+    const id = Number(req.params.id);
+    const body = await req.json();
+    const result = await service.registerSumilla(id, body);
+    return {
+      status: 200,
+      jsonBody: {
+        success: true,
+        message: result.message,
+      },
+    };
+  }
+
   // --------- COMPETENCIAS ----------
   // GET /api/syllabus/:syllabusId/competencies
   @route("/{syllabusId}/competencies", "GET")
@@ -61,6 +106,14 @@ export class SyllabusController implements Updatable {
     req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
+    throw new Error("not implemented");
+  }
+
+  @route("/{id}/datos-generales", "GET")
+  async getGeneralData(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
     const { syllabusId } = req.params as { syllabusId: string };
     const items = await syllabusService.getComponents(syllabusId);
     return { status: 200, jsonBody: { items } };
@@ -73,10 +126,13 @@ export class SyllabusController implements Updatable {
     req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const { syllabusId } = req.params as { syllabusId: string };
-    const body = await req.json();
-    const res = await syllabusService.createComponents(syllabusId, body);
-    return { status: 201, jsonBody: res };
+    const id = Number(req.params.id);
+    const result = await syllabusService.getGeneralDataSyllabusById(id);
+    return {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(result, null, 2),
+    };
   }
 
   // DELETE /api/syllabus/:syllabusId/components/:id
