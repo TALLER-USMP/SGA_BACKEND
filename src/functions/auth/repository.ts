@@ -47,12 +47,6 @@ class AuthRepository {
       .where(eq(userCategory.nombreCategoria, "indeterminado"))
       .limit(1);
 
-    if (defaultCategory.length === 0) {
-      throw new Error(
-        "La categoría 'indeterminado' no existe en la base de datos.",
-      );
-    }
-
     const defaultCategoryId = defaultCategory[0].id;
 
     const newUser = await this.db
