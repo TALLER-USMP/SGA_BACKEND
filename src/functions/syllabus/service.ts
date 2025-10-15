@@ -8,6 +8,7 @@ import {
 import { AppError } from "../../error";
 import { z } from "zod";
 
+//1
 const CreateComponentsSchema = z.object({
   items: z
     .array(

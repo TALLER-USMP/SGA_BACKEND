@@ -7,7 +7,7 @@ import {
   silaboCompetenciaComponente,
 } from "../../../drizzle/schema";
 import { AppError } from "../../error";
-
+//1
 type Upsertable = { id?: number | string; text: string; order?: number | null };
 type CreateItem = { text: string; order?: number | null; code?: string | null };
 

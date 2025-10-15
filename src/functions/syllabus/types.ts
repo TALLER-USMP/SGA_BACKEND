@@ -39,7 +39,7 @@ export const CodeSchemaAttitude = z
   .trim()
   .toLowerCase()
   .regex(/^[a-z]$/, "Ingresa el codigo (a-z)");
-
+//1
 /* COMPONENTES */
 export const CreateComponentsSchema = z.object({
   items: z

@@ -6,6 +6,7 @@ import {
 import { Updatable } from "../../types"; // tu interfaz
 import { controller, route } from "../../lib/decorators";
 import { syllabusService } from "./service";
+//1
 @controller("syllabus")
 export class SyllabusController implements Updatable {
   // Requisito de la interfaz Updatable
