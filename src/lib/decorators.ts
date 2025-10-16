@@ -79,11 +79,21 @@ export function route(path: string, method: HttpMethod = "GET") {
           };
         }
 
+        if (error instanceof Error) {
+          return {
+            status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+            jsonBody: {
+              name: error.name,
+              message: error.message,
+            },
+          };
+        }
+
         return {
           status: STATUS_CODES.INTERNAL_SERVER_ERROR,
           jsonBody: {
-            message: "Unknown error",
             name: "UnknownError",
+            message: "Unknown error",
           },
         };
       }

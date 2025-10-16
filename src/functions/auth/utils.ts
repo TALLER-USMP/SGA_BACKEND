@@ -32,11 +32,8 @@ export function getKey(
   callback: jwt.SigningKeyCallback,
 ) {
   client.getSigningKey(header.kid!, (err, key) => {
-    if (err) {
-      callback(err, undefined);
-    } else {
-      const signingKey = key?.getPublicKey();
-      callback(null, signingKey);
-    }
+    if (err) return callback(err, undefined);
+    const signingKey = key?.getPublicKey();
+    callback(null, signingKey);
   });
 }

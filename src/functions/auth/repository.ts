@@ -1,7 +1,7 @@
 import { getDb } from "../../db";
-import { authorizedUser, userCategory } from "../../../drizzle/schema";
+import { categoriaUsuario, docente } from "../../../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { MicrosoftJwtPayload, AuthorizedUser, UserCategory } from "./types";
+import { MicrosoftJwtPayload, Professor, UserCategory } from "./types";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 
@@ -13,19 +13,19 @@ class AuthRepository {
   }
 
   async findUserByEmail(
-    correo: string,
-  ): Promise<{ user: AuthorizedUser; category: UserCategory } | null> {
+    email: string,
+  ): Promise<{ user: Professor; category: UserCategory } | null> {
     const result = await this.db
       .select({
-        user: authorizedUser,
-        category: userCategory,
+        user: docente,
+        category: categoriaUsuario,
       })
-      .from(authorizedUser)
+      .from(docente)
       .leftJoin(
-        userCategory,
-        eq(authorizedUser.categoriaUsuarioId, userCategory.id),
+        categoriaUsuario,
+        eq(docente.categoriaUsuarioId, categoriaUsuario.id),
       )
-      .where(eq(authorizedUser.correo, correo.toLowerCase()))
+      .where(eq(docente.correo, email))
       .limit(1);
 
     if (result.length === 0 || !result[0].category) {
@@ -40,19 +40,19 @@ class AuthRepository {
 
   async createUser(
     payload: MicrosoftJwtPayload,
-  ): Promise<{ user: AuthorizedUser; category: UserCategory }> {
+  ): Promise<{ user: Professor; category: UserCategory }> {
     const defaultCategory = await this.db
       .select()
-      .from(userCategory)
-      .where(eq(userCategory.nombreCategoria, "indeterminado"))
+      .from(categoriaUsuario)
+      .where(eq(categoriaUsuario.nombreCategoria, "indeterminado"))
       .limit(1);
 
     const defaultCategoryId = defaultCategory[0].id;
 
     const newUser = await this.db
-      .insert(authorizedUser)
+      .insert(docente)
       .values({
-        correo: payload.email.toLowerCase(),
+        correo: payload.preferred_username,
         categoriaUsuarioId: defaultCategoryId,
         azureAdObjectId: payload.oid,
         tenantId: payload.tid,
@@ -68,16 +68,16 @@ class AuthRepository {
   async updateLastAccess(
     userId: number,
     payload: MicrosoftJwtPayload,
-  ): Promise<AuthorizedUser> {
+  ): Promise<Professor> {
     const updatedUser = await this.db
-      .update(authorizedUser)
+      .update(docente)
       .set({
         ultimoAccesoEn: new Date().toISOString(),
         azureAdObjectId: payload.oid || undefined,
         tenantId: payload.tid || undefined,
         actualizadoEn: new Date().toISOString(),
       })
-      .where(eq(authorizedUser.id, userId))
+      .where(eq(docente.id, userId))
       .returning();
 
     return updatedUser[0];
@@ -85,12 +85,12 @@ class AuthRepository {
 
   async updateOnlyLastAccess(userId: number): Promise<void> {
     await this.db
-      .update(authorizedUser)
+      .update(docente)
       .set({
         ultimoAccesoEn: new Date().toISOString(),
         actualizadoEn: new Date().toISOString(),
       })
-      .where(eq(authorizedUser.id, userId));
+      .where(eq(docente.id, userId));
   }
 }
 

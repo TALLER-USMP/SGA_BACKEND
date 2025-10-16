@@ -1,7 +1,7 @@
 import * as jwt from "jsonwebtoken";
 import { authRepository } from "./repository";
 import {
-  AuthorizedUser,
+  Professor,
   LoginResponse,
   MicrosoftJwtPayload,
   SessionResponse,
@@ -25,17 +25,15 @@ class AuthService {
           ],
         },
         (err, decoded) => {
-          if (err) {
-            reject(new AppError("Unauthorized", "UNAUTHORIZED"));
-          } else {
-            resolve(decoded as MicrosoftJwtPayload);
-          }
+          if (err)
+            return reject(new AppError(err.name, "BAD_REQUEST", err.message));
+          resolve(decoded as MicrosoftJwtPayload);
         },
       );
     });
   }
 
-  private generateOurJwt(user: AuthorizedUser, role: number): string {
+  private generateOurJwt(user: Professor, role: number): string {
     const payload: UserSession = {
       id: user.id,
       email: user.correo,
@@ -47,7 +45,7 @@ class AuthService {
 
   public async login(msToken: string): Promise<LoginResponse> {
     const msPayload = await this.verifyMicrosoftToken(msToken);
-    const userEmail = msPayload.email.toLowerCase();
+    const userEmail = msPayload.preferred_username;
 
     let userRecord = await authRepository.findUserByEmail(userEmail);
 

@@ -1,4 +1,3 @@
-// src/functions/auth/controller.ts
 import { HttpRequest, HttpResponseInit } from "@azure/functions";
 import { controller, route } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
@@ -29,8 +28,7 @@ export class AuthController implements Readable {
       },
       jsonBody: {
         message: "Inicio de sesión exitoso",
-        user: responseData.user,
-        token: responseData.token,
+        url: `${process.env.DASHBOARD_URL}?token=${responseData.token}`,
       },
     };
   }

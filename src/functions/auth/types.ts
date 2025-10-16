@@ -1,15 +1,26 @@
 import z from "zod";
-import { authorizedUser, userCategory } from "../../../drizzle/schema";
+import { docente, categoriaUsuario } from "../../../drizzle/schema";
 import { InferSelectModel } from "drizzle-orm";
 
-export type AuthorizedUser = InferSelectModel<typeof authorizedUser>;
-export type UserCategory = InferSelectModel<typeof userCategory>;
+export type Professor = InferSelectModel<typeof docente>;
+export type UserCategory = InferSelectModel<typeof categoriaUsuario>;
 
 export interface MicrosoftJwtPayload {
-  email: string;
-  name: string;
-  oid?: string;
-  tid?: string;
+  aud: string; // ID de la app (client_id)
+  iss: string; // Emisor (tenant endpoint)
+  iat: number; // Fecha de emisión (epoch)
+  nbf: number; // No válido antes de (epoch)
+  exp: number; // Fecha de expiración (epoch)
+  name: string; // Nombre completo del usuario
+  nonce: string; // Nonce usado en el flujo de autenticación
+  oid: string; // Object ID del usuario en Azure AD
+  preferred_username: string; // Usualmente email o UPN
+  rh: string; // Refresh handle interno de MS
+  sid: string; // Session ID
+  sub: string; // Subject ID (único por usuario y app)
+  tid: string; // Tenant ID
+  uti: string; // ID de token único
+  ver: string; // Versión del token (2.0)
 }
 
 // Esquema para la entrada del POST /auth/login/
