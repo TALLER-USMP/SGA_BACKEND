@@ -4,24 +4,44 @@ import jwt from "jsonwebtoken";
 
 const sessionCookieName = process.env.SESSION_COOKIE_NAME;
 export function createAuthCookieHeader(token: string): string {
-  const secure = process.env.NODE_ENV === "production" ? "Secure;" : "";
+  const secure = process.env.NODE_ENV === "production" ? "Secure;" : "Secure";
   const maxAge = 60 * 60 * 24 * 7;
-  return `${sessionCookieName}=${token}; HttpOnly; Max-Age=${maxAge}; ${secure} SameSite=Strict; Path=/`;
+  return `${sessionCookieName}=${token}; HttpOnly; Max-Age=${maxAge}; ${secure}; SameSite=None; Path=/`;
 }
 
 export function clearAuthCookieHeader(): string {
   return `${sessionCookieName}=; HttpOnly; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/`;
 }
 
-export const getCookie = (headers: HttpRequest["headers"]): string | null => {
-  const cookieHeader = headers.get("cookie");
-  if (!cookieHeader) return null;
+export const getCookie = (
+  headers: HttpRequest["headers"],
+  cookieName: string = process.env.SESSION_COOKIE_NAME!
+): string | null => {
+  try {
+    const cookieHeader =
+      headers.get("cookie") || headers.get("Cookie") || "";
 
-  const cookies = cookieHeader.split(";").map((c) => c.trim());
-  const cookie = cookies.find((c) => c.startsWith(`${sessionCookieName}=`));
+    if (!cookieHeader) return null;
 
-  return cookie ? cookie.substring(sessionCookieName!.length + 1) : null;
+    const cookies = cookieHeader
+      .split(";")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    const target = cookies.find((c) =>
+      c.toLowerCase().startsWith(`${cookieName.toLowerCase()}=`),
+    );
+
+    if (!target) return null;
+
+    const value = target.substring(cookieName.length + 1);
+    return decodeURIComponent(value);
+  } catch (error) {
+    console.error("Error al leer cookie:", error);
+    return null;
+  }
 };
+
 
 const client = jwksClient({
   jwksUri: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}/discovery/v2.0/keys`,

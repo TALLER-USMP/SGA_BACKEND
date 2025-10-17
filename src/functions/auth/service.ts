@@ -38,42 +38,46 @@ class AuthService {
       id: user.id,
       email: user.correo,
       role: role,
+      name: user.nombreDocente,
     };
 
     return jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: "1d" });
   }
 
   public async login(msToken: string): Promise<LoginResponse> {
-    const msPayload = await this.verifyMicrosoftToken(msToken);
-    const userEmail = msPayload.preferred_username;
+  const msPayload = await this.verifyMicrosoftToken(msToken);
 
-    let userRecord = await authRepository.findUserByEmail(userEmail);
+  const userEmail = msPayload.preferred_username;
+  let userRecord = await authRepository.findUserByEmail(userEmail);
+  console.log("📚 [AuthService] User record found?", !!userRecord);
 
-    if (userRecord) {
-      await authRepository.updateLastAccess(userRecord.user.id, msPayload);
-    } else {
-      userRecord = await authRepository.createUser(msPayload);
-    }
-
-    const ourToken = this.generateOurJwt(
-      userRecord.user,
-      userRecord.category.id,
-    );
-
-    return {
-      token: ourToken,
-      user: {
-        id: userRecord.user.id,
-        email: userRecord.user.correo,
-        role: userRecord.category.id,
-      },
-    };
+  if (userRecord) {
+    await authRepository.updateLastAccess(userRecord.user.id, msPayload);
+  } else {
+    userRecord = await authRepository.createUser(msPayload);
   }
+
+  const ourToken = this.generateOurJwt(
+    userRecord.user,
+    userRecord.category.id,
+  );
+
+  return {
+    token: ourToken,
+    user: {
+      id: userRecord.user.id,
+      email: userRecord.user.correo,
+      role: userRecord.category.id,
+      name: userRecord.user.nombreDocente,
+    },
+  };
+}
+
 
   public async sessionMe(ourToken: string): Promise<SessionResponse> {
     const decoded = jwt.verify(
       ourToken,
-      process.env.OUR_JWT_SECRET!,
+      process.env.JWT_SECRET!,
     ) as UserSession;
     const userId = decoded.id;
 
@@ -95,6 +99,7 @@ class AuthService {
         id: userAndCategory.user.id,
         email: userAndCategory.user.correo,
         role: userAndCategory.category.id,
+        name: userAndCategory.user.nombreDocente,
       },
     };
   }

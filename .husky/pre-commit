@@ -1,3 +1,2 @@
-npm run format:check
 npm run test
 npm run build

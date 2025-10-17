@@ -35,6 +35,7 @@ export const userSessionSchema = z.object({
   id: z.number().int().positive(),
   email: z.email(),
   role: z.number().int().positive(),
+  name: z.string().min(1).nullable(),
 });
 export type UserSession = z.infer<typeof userSessionSchema>;
 
@@ -49,3 +50,7 @@ export type SessionRequest = z.infer<typeof sessionRequestSchema>;
 
 export const sessionResponseSchema = loginResponseSchema;
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
+
+export const setCookieSchema = z.object({
+  token: z.string(),
+});
