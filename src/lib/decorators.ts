@@ -7,6 +7,7 @@ import {
 import { MetadataStore } from "./metadatastore";
 import { AppError } from "../error";
 import { STATUS_CODES } from "../status-codes";
+import { ZodError } from "zod";
 
 export type RouteDefinition = {
   path: string;
@@ -42,7 +43,6 @@ export function route(path: string, method: HttpMethod = "GET") {
   return (target: any, handlerKey: string, descriptor: PropertyDescriptor) => {
     const routes: RouteDefinition[] =
       Reflect.getMetadata("controller:routes", target.constructor) || [];
-
     routes.push({
       handlerKey,
       method,
@@ -58,7 +58,6 @@ export function route(path: string, method: HttpMethod = "GET") {
         const result = await originalMethod(req, context);
         return result;
       } catch (error: unknown) {
-        context.log?.(`❌ [${method} ${path}]`, error);
         if (error instanceof AppError) {
           return {
             status: error.statusCode,
@@ -68,11 +67,33 @@ export function route(path: string, method: HttpMethod = "GET") {
             },
           };
         }
+
+        if (error instanceof ZodError) {
+          return {
+            status: STATUS_CODES.BAD_REQUEST,
+            jsonBody: {
+              message: `Bad Request on ${handlerKey}`,
+              name: "BadRequest",
+              data: error.issues,
+            },
+          };
+        }
+
+        if (error instanceof Error) {
+          return {
+            status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+            jsonBody: {
+              name: error.name,
+              message: error.message,
+            },
+          };
+        }
+
         return {
           status: STATUS_CODES.INTERNAL_SERVER_ERROR,
           jsonBody: {
-            message: "Unknown error",
             name: "UnknownError",
+            message: "Unknown error",
           },
         };
       }

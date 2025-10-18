@@ -30,8 +30,10 @@ _¿Qué se debe realizar?_
 ---
 
 ### 📎 Notas adicionales
+
 <<<<<<< HEAD
 
 =======
->>>>>>> dev
-_Agregar cualquier detalle extra, enlace o imagen que ayude a entender mejor la tarea_
+
+> > > > > > > dev
+> > > > > > > _Agregar cualquier detalle extra, enlace o imagen que ayude a entender mejor la tarea_
