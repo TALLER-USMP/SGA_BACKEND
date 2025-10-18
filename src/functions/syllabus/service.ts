@@ -1,37 +1,10 @@
 import { syllabusRepository } from "./repository";
 import {
   UpsertCompetenciesSchema,
-  CodeSchemaComponent, // letra.número (p.ej. g.1)
-  CodeSchemaAttitude, // solo letra (p.ej. b)
-  OrderSchema, // number | "123" | null -> number | undefined
+  CreateComponentsSchema, //
+  CreateAttitudesSchema, //
 } from "./types";
 import { AppError } from "../../error";
-import { z } from "zod";
-
-//1
-const CreateComponentsSchema = z.object({
-  items: z
-    .array(
-      z.object({
-        text: z.string().min(1, "Deberias completar el campo 'text' "),
-        code: CodeSchemaComponent.optional(), // g.1, g.2...
-        order: OrderSchema, // acepta 2, "2" o null
-      }),
-    )
-    .min(1, "items requerido"),
-});
-
-const CreateAttitudesSchema = z.object({
-  items: z
-    .array(
-      z.object({
-        text: z.string().min(1, "Deberias completar el campo 'text' "),
-        code: CodeSchemaAttitude.optional(), // b, c, f...
-        order: OrderSchema, // acepta 2, "2" o null
-      }),
-    )
-    .min(1, "items requerido"),
-});
 
 export class SyllabusService {
   // ---------- COMPETENCIAS ----------
@@ -58,9 +31,10 @@ export class SyllabusService {
       throw new AppError("BadRequest", "BAD_REQUEST", details);
     }
 
+    // OrderSchema en types.ts ya transforma a number | undefined
     const items = parsed.data.items.map(({ text, order, code }) => ({
       text,
-      order: typeof order === "number" ? order : null,
+      order: order ?? null, // si tu DB quiere null; si acepta undefined, puedes dejar `order`
       code: code ?? null,
     }));
 
@@ -74,7 +48,6 @@ export class SyllabusService {
 
   // ---------- COMPONENTES ----------
   async getComponents(syllabusId: string) {
-    // <-- async (no "sync")
     const sId = Number(syllabusId);
     if (Number.isNaN(sId)) {
       throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
@@ -106,7 +79,7 @@ export class SyllabusService {
 
     const items = parsed.data.items.map(({ text, order, code }) => ({
       text,
-      order: typeof order === "number" ? order : null,
+      order: order ?? null, // aprovechando la transform de OrderSchema
       code: code ?? null,
     }));
 
@@ -143,7 +116,7 @@ export class SyllabusService {
       silaboId: r.silaboId ?? r.silabo_id,
       text: r.descripcion ?? r.text,
       order: r.orden ?? r.order ?? null,
-      code: r.code ?? r.codigo ?? null, // incluir code si el repo lo devuelve
+      code: r.code ?? r.codigo ?? null,
     }));
   }
 
@@ -163,7 +136,7 @@ export class SyllabusService {
 
     const items = parsed.data.items.map(({ text, order, code }) => ({
       text,
-      order: typeof order === "number" ? order : null,
+      order: order ?? null,
       code: code ?? null,
     }));
 
@@ -192,7 +165,7 @@ export class SyllabusService {
     return {
       ok: true as const,
       deleted,
-      message: "🗑️ El item fue eliminado con éxito",
+      message: "🗑️ El item se elimino con éxito",
     };
   }
 }
