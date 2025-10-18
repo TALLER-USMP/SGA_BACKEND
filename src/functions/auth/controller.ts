@@ -17,14 +17,12 @@ export class AuthController implements Readable {
     const body = await req.json();
     const { microsoftToken } = loginRequestSchema.parse(body);
     const authResponse = await authService.login(microsoftToken);
-    const cookieHeader = createAuthCookieHeader(authResponse.token);
     const responseData = loginResponseSchema.parse(authResponse);
 
     return {
       status: STATUS_CODES.OK,
       headers: {
         "Content-Type": "application/json",
-        "Set-Cookie": cookieHeader,
       },
       jsonBody: {
         message: "Inicio de sesión exitoso",
@@ -34,65 +32,32 @@ export class AuthController implements Readable {
     };
   }
 
-
-  @route("/set-cookie", "POST")
-  async setCookie(req: HttpRequest): Promise<HttpResponseInit> {
-    const { token, user } = await req.json() as { token: string; user: any };
-
-      const corsHeaders = {
-        "Access-Control-Allow-Origin": "http://localhost:5002",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-      };
-
-    const cookieHeader = createAuthCookieHeader(token); // solo creas la cookie
-
-    if (!token) {
-      return {
-        status: STATUS_CODES.BAD_REQUEST,
-        headers: {          
-          "Content-Type": "application/json",
-        },
-        jsonBody: { message: "Token requerido" },
-      };
-    }
-
-    return {
-      status: STATUS_CODES.OK,
-      headers: {
-        ...corsHeaders,
-        "Set-Cookie": cookieHeader,
-        "Content-Type": "application/json",
-      },
-      jsonBody: {
-        message: "Token almacenado como cookie HttpOnly",
-        body: { user, token },
-      },
-    };
-  }
-
-
-  @route("/me")
+  @route("/me", "POST")
   async getOne(req: HttpRequest): Promise<HttpResponseInit> {
-    const ourToken = getCookie(req.headers, "sessionSGA") || req.query.get("token"); 
+    let ourToken =
+      getCookie(req.headers, "sessionSGA") || req.query.get("token") || null;
+
+    if (!ourToken) {
+      const body = (await req.json().catch(() => ({}))) as { token?: string };
+      ourToken = body.token ?? null;
+    }
 
     if (!ourToken) {
       return {
-        status: STATUS_CODES.UNAUTHORIZED,
-        jsonBody: { message: "No estás logueado. Sesión no encontrada." },
+        status: STATUS_CODES.BAD_REQUEST,
+        jsonBody: { message: "Token requerido o sesión no encontrada." },
       };
     }
 
+    const cookieHeader = createAuthCookieHeader(ourToken);
     const authResponse = await authService.sessionMe(ourToken);
-    const cookieHeader = createAuthCookieHeader(authResponse.token);
     const responseData = sessionResponseSchema.parse(authResponse);
 
     return {
       status: STATUS_CODES.OK,
       headers: {
-        "Content-Type": "application/json",
         "Set-Cookie": cookieHeader,
+        "Content-Type": "application/json",
       },
       jsonBody: {
         message: "Sesión activa",
