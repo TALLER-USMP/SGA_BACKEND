@@ -5,17 +5,17 @@ import { app } from "@azure/functions";
 export function bootstrapApp(application: typeof app) {
   const controllers =
     Reflect.getMetadata("controller:class", MetadataStore) || [];
-  for (const currentClass of controllers) {
-    const prefix = Reflect.getMetadata("controller:prefix", currentClass);
-    const instance = new currentClass();
+  for (const Controller of controllers) {
+    const prefix = Reflect.getMetadata("controller:prefix", Controller);
+    const controller = new Controller();
     const routes: RouteDefinition[] =
-      Reflect.getMetadata("controller:routes", currentClass) || [];
+      Reflect.getMetadata("controller:routes", Controller) || [];
 
     for (const route of routes) {
       application.http(`${prefix}_${route.handlerKey}`, {
         methods: [route.method],
         route: `${prefix}${route.path}`,
-        handler: instance[route.handlerKey].bind(instance),
+        handler: controller[route.handlerKey].bind(controller),
       });
     }
   }

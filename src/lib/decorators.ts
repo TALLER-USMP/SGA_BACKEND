@@ -1,10 +1,13 @@
-import { HttpMethod, HttpRequest, InvocationContext } from "@azure/functions";
-import { BaseController } from "../base-controller";
-import { STATUS_CODES } from "../status-codes";
+import {
+  HttpMethod,
+  HttpRequest,
+  HttpResponseInit,
+  InvocationContext,
+} from "@azure/functions";
 import { MetadataStore } from "./metadatastore";
-import { SessionService } from "../service/session.service";
-import { UserRepository } from "../repositories/user.repository";
-import { extractCookie } from "../utils/cookie.utils";
+import { AppError } from "../error";
+import { STATUS_CODES } from "../status-codes";
+import { ZodError } from "zod";
 
 export type RouteDefinition = {
   path: string;
@@ -17,20 +20,15 @@ export type RouteDefinition = {
  * @param path Prefix of API route
  * @returns Class constructor
  */
-export function controller<T extends { new (...args: any[]): BaseController }>(
+export function controller<T extends { new (...args: any[]): any }>(
   prefix: string,
 ) {
   return (constructor: T) => {
     Reflect.defineMetadata("controller:prefix", prefix, constructor);
-
     const classes =
-      Reflect.getMetadata("controller:class", MetadataStore) || []; // 2
-    // [SylabussController, ReportController] // 2
-
-    classes.push(constructor); // [RerportController, SyllabusContrller, TestController] 3
-
-    Reflect.defineMetadata("controller:class", classes, MetadataStore); // actualizo // 3
-
+      Reflect.getMetadata("controller:class", MetadataStore) || [];
+    classes.push(constructor);
+    Reflect.defineMetadata("controller:class", classes, MetadataStore);
     return constructor;
   };
 }
@@ -42,7 +40,7 @@ export function controller<T extends { new (...args: any[]): BaseController }>(
  * @returns
  */
 export function route(path: string, method: HttpMethod = "GET") {
-  return (target: any, handlerKey: string) => {
+  return (target: any, handlerKey: string, descriptor: PropertyDescriptor) => {
     const routes: RouteDefinition[] =
       Reflect.getMetadata("controller:routes", target.constructor) || [];
     routes.push({
@@ -51,84 +49,52 @@ export function route(path: string, method: HttpMethod = "GET") {
       path,
     });
     Reflect.defineMetadata("controller:routes", routes, target.constructor);
-  };
-}
-
-const userRepo = new UserRepository();
-
-export function auth(allowedRoles: string[]) {
-  return (target: any, handlerKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
-
-    descriptor.value = async (req: HttpRequest, ctx: InvocationContext) => {
+    descriptor.value = async function (
+      req: HttpRequest,
+      context: InvocationContext,
+    ): Promise<HttpResponseInit> {
       try {
-        // Obtener token desde Header o Cookie
-        const authHeader =
-          req.headers.get("authorization") || req.headers.get("Authorization");
-        const cookieHeader = req.headers.get("cookie");
-
-        const token = authHeader?.startsWith("Bearer ")
-          ? authHeader.substring(7)
-          : extractCookie(cookieHeader, "session_token");
-
-        if (!token) {
+        const result = await originalMethod(req, context);
+        return result;
+      } catch (error: unknown) {
+        if (error instanceof AppError) {
           return {
-            status: STATUS_CODES.UNAUTHORIZED,
-            jsonBody: { message: "Token de sesión no proporcionado" },
-          };
-        }
-
-        const decoded = SessionService.verifySessionToken(token);
-        if (!decoded || typeof decoded === "string") {
-          return {
-            status: STATUS_CODES.UNAUTHORIZED,
-            jsonBody: { message: "Token inválido o expirado" },
-          };
-        }
-
-        const { oid, tenantId } = decoded as any;
-        if (!oid || !tenantId) {
-          return {
-            status: STATUS_CODES.UNAUTHORIZED,
-            jsonBody: { message: "Token sin información válida de usuario" },
-          };
-        }
-
-        const user = await userRepo.findWithCategory(oid, tenantId);
-        if (!user) {
-          return {
-            status: STATUS_CODES.UNAUTHORIZED,
-            jsonBody: { message: "Usuario no registrado o no autorizado" },
-          };
-        }
-
-        if (!user.activo) {
-          return {
-            status: STATUS_CODES.FORBIDDEN,
-            jsonBody: { message: "Usuario inactivo" },
-          };
-        }
-
-        const role = user.categoria?.nombre_categoria;
-        if (!role || !allowedRoles.includes(role)) {
-          return {
-            status: STATUS_CODES.FORBIDDEN,
+            status: error.statusCode,
             jsonBody: {
-              message: `Acceso denegado. Rol requerido: ${allowedRoles.join(
-                ", ",
-              )}`,
+              message: error.message,
+              name: error.name,
             },
           };
         }
 
-        (ctx as any).user = user;
+        if (error instanceof ZodError) {
+          return {
+            status: STATUS_CODES.BAD_REQUEST,
+            jsonBody: {
+              message: `Bad Request on ${handlerKey}`,
+              name: "BadRequest",
+              data: error.issues,
+            },
+          };
+        }
 
-        return await originalMethod(req, ctx);
-      } catch (error) {
-        console.error("Error en decorador @auth:", error);
+        if (error instanceof Error) {
+          return {
+            status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+            jsonBody: {
+              name: error.name,
+              message: error.message,
+            },
+          };
+        }
+
         return {
           status: STATUS_CODES.INTERNAL_SERVER_ERROR,
-          jsonBody: { message: "Error interno de autenticación" },
+          jsonBody: {
+            name: "UnknownError",
+            message: "Unknown error",
+          },
         };
       }
     };

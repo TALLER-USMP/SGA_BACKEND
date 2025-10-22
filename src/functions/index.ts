@@ -39,7 +39,6 @@ app.http("health", {
         },
       };
     } catch (error) {
-      console.log(error);
       if (error instanceof AppError) {
         return error.toHttpResponse();
       } else {
