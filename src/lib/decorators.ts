@@ -85,10 +85,10 @@ export function route(path: string, method: HttpMethod = "GET") {
       try {
         const result = await originalMethod(req, context);
 
-        const mergedHeaders = {
+        const mergedHeaders = new Headers({
           ...baseHeaders,
           ...(result?.headers || {}),
-        };
+        });
 
         return {
           ...result,
