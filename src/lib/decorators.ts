@@ -55,50 +55,39 @@ export function route(path: string, method: HttpMethod = "GET") {
       req: HttpRequest,
       context: InvocationContext,
     ): Promise<HttpResponseInit> {
-      const allowedOrigins = [
-        "https://lemon-moss-0c832d30f.1.azurestaticapps.net",
-        "https://zealous-forest-09c221e0f.2.azurestaticapps.net",
-        "http://localhost:5001",
-        "http://localhost:5002",
-      ];
-
-      const origin = req.headers.get("origin");
-      const corsOrigin =
-        typeof origin === "string" && allowedOrigins.includes(origin)
-          ? origin
-          : allowedOrigins[0];
-
-      const baseHeaders: Record<string, string> = {
-        "Access-Control-Allow-Origin": corsOrigin,
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      const responseHeaders: Record<string, string> = {
         "Access-Control-Allow-Credentials": "true",
       };
 
       if (req.method === "OPTIONS") {
         return {
           status: 204,
-          headers: baseHeaders,
+          headers: responseHeaders,
         };
       }
 
       try {
-        const result = await originalMethod(req, context);
+        const result = await originalMethod.call(this, req, context);
 
-        const mergedHeaders = new Headers({
-          ...baseHeaders,
-          ...(result?.headers || {}),
-        });
+        if (result?.headers) {
+          if (result.headers instanceof Headers) {
+            result.headers.forEach((value: string, key: string | number) => {
+              responseHeaders[key] = value;
+            });
+          } else {
+            Object.assign(responseHeaders, result.headers);
+          }
+        }
 
         return {
           ...result,
-          headers: mergedHeaders,
+          headers: responseHeaders,
         };
       } catch (error: unknown) {
         if (error instanceof AppError) {
           return {
             status: error.statusCode,
-            headers: baseHeaders,
+            headers: responseHeaders,
             jsonBody: {
               message: error.message,
               name: error.name,
@@ -109,7 +98,7 @@ export function route(path: string, method: HttpMethod = "GET") {
         if (error instanceof ZodError) {
           return {
             status: STATUS_CODES.BAD_REQUEST,
-            headers: baseHeaders,
+            headers: responseHeaders,
             jsonBody: {
               message: `Bad Request on ${handlerKey}`,
               name: "BadRequest",
@@ -121,7 +110,7 @@ export function route(path: string, method: HttpMethod = "GET") {
         if (error instanceof Error) {
           return {
             status: STATUS_CODES.INTERNAL_SERVER_ERROR,
-            headers: baseHeaders,
+            headers: responseHeaders,
             jsonBody: {
               name: error.name,
               message: error.message,
@@ -131,7 +120,7 @@ export function route(path: string, method: HttpMethod = "GET") {
 
         return {
           status: STATUS_CODES.INTERNAL_SERVER_ERROR,
-          headers: baseHeaders,
+          headers: responseHeaders,
           jsonBody: {
             name: "UnknownError",
             message: "Unknown error",
