@@ -8,6 +8,7 @@ import { MetadataStore } from "./metadatastore";
 import { AppError } from "../error";
 import { STATUS_CODES } from "../status-codes";
 import { ZodError } from "zod";
+import { merge } from "zod/v4/core/util.cjs";
 
 export type RouteDefinition = {
   path: string;
@@ -67,7 +68,7 @@ export function route(path: string, method: HttpMethod = "GET") {
           ? origin
           : allowedOrigins[0];
 
-      const baseHeaders = {
+      const baseHeaders: Record<string, string> = {
         "Access-Control-Allow-Origin": corsOrigin,
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -77,18 +78,21 @@ export function route(path: string, method: HttpMethod = "GET") {
       if (req.method === "OPTIONS") {
         return {
           status: 204,
-          headers: baseHeaders, // debe ir dentro de headers
+          headers: baseHeaders,
         };
       }
 
       try {
         const result = await originalMethod(req, context);
+
+        const mergedHeaders = {
+          ...baseHeaders,
+          ...(result?.headers || {}),
+        };
+
         return {
           ...result,
-          headers: {
-            ...baseHeaders,
-            ...(result?.headers || {}),
-          },
+          headers: mergedHeaders,
         };
       } catch (error: unknown) {
         if (error instanceof AppError) {
