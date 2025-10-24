@@ -74,13 +74,14 @@ export function route(path: string, method: HttpMethod = "GET") {
         "Access-Control-Allow-Credentials": "true",
       };
 
+      if (req.method === "OPTIONS") {
+        return {
+          status: 204,
+          headers: baseHeaders, // debe ir dentro de headers
+        };
+      }
+
       try {
-        if (req.method === "OPTIONS") {
-          return {
-            status: 204,
-            ...baseHeaders,
-          };
-        }
         const result = await originalMethod(req, context);
         return {
           ...result,
