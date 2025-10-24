@@ -54,13 +54,47 @@ export function route(path: string, method: HttpMethod = "GET") {
       req: HttpRequest,
       context: InvocationContext,
     ): Promise<HttpResponseInit> {
+      const allowedOrigins = [
+        "https://lemon-moss-0c832d30f.1.azurestaticapps.net",
+        "https://zealous-forest-09c221e0f.2.azurestaticapps.net",
+        "http://localhost:5001",
+        "http://localhost:5002",
+      ];
+
+      const origin = req.headers.get("origin");
+      const corsOrigin =
+        typeof origin === "string" && allowedOrigins.includes(origin)
+          ? origin
+          : allowedOrigins[0];
+
+      const baseHeaders = {
+        "Access-Control-Allow-Origin": corsOrigin,
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Credentials": "true",
+      };
+
+      if (req.method === "OPTIONS") {
+        return {
+          status: 204,
+          headers: baseHeaders, // debe ir dentro de headers
+        };
+      }
+
       try {
         const result = await originalMethod(req, context);
-        return result;
+        return {
+          ...result,
+          headers: {
+            ...baseHeaders,
+            ...(result?.headers || {}),
+          },
+        };
       } catch (error: unknown) {
         if (error instanceof AppError) {
           return {
             status: error.statusCode,
+            headers: baseHeaders,
             jsonBody: {
               message: error.message,
               name: error.name,
@@ -71,6 +105,7 @@ export function route(path: string, method: HttpMethod = "GET") {
         if (error instanceof ZodError) {
           return {
             status: STATUS_CODES.BAD_REQUEST,
+            headers: baseHeaders,
             jsonBody: {
               message: `Bad Request on ${handlerKey}`,
               name: "BadRequest",
@@ -82,6 +117,7 @@ export function route(path: string, method: HttpMethod = "GET") {
         if (error instanceof Error) {
           return {
             status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+            headers: baseHeaders,
             jsonBody: {
               name: error.name,
               message: error.message,
@@ -91,6 +127,7 @@ export function route(path: string, method: HttpMethod = "GET") {
 
         return {
           status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+          headers: baseHeaders,
           jsonBody: {
             name: "UnknownError",
             message: "Unknown error",
