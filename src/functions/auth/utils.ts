@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 
 const sessionCookieName = process.env.SESSION_COOKIE_NAME;
 export function createAuthCookieHeader(token: string): string {
-  const secure = process.env.NODE_ENV === "production" ? "Secure;" : "Secure";
+  const secure = process.env.NODE_ENV === "production" ? "Secure" : "Secure";
   const maxAge = 60 * 60 * 24 * 7;
   return `${sessionCookieName}=${token}; HttpOnly; Max-Age=${maxAge}; ${secure}; SameSite=None; Path=/`;
 }
@@ -15,11 +15,10 @@ export function clearAuthCookieHeader(): string {
 
 export const getCookie = (
   headers: HttpRequest["headers"],
-  cookieName: string = process.env.SESSION_COOKIE_NAME!
+  cookieName: string = process.env.SESSION_COOKIE_NAME!,
 ): string | null => {
   try {
-    const cookieHeader =
-      headers.get("cookie") || headers.get("Cookie") || "";
+    const cookieHeader = headers.get("cookie") || headers.get("Cookie") || "";
 
     if (!cookieHeader) return null;
 
@@ -41,7 +40,6 @@ export const getCookie = (
     return null;
   }
 };
-
 
 const client = jwksClient({
   jwksUri: `https://login.microsoftonline.com/${process.env.AZURE_TENANT_ID}/discovery/v2.0/keys`,
