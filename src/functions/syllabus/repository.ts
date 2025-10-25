@@ -159,7 +159,7 @@ export class SyllabusRepository {
       .set({
         //sumilla,
         updatedAt: new Date().toISOString(),
-      })
+      } as any)
       .where(eq(silabo.id, id));
   }
 
