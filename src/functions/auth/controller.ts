@@ -66,4 +66,28 @@ export class AuthController implements Readable {
       },
     };
   }
+
+  @route("/logout", "POST")
+  async logout(req: HttpRequest): Promise<HttpResponseInit> {
+    let currentToken =
+      getCookie(req.headers, "sessionSGA") || req.query.get("token") || null;
+
+    if (!currentToken) {
+      const body = (await req.json().catch(() => ({}))) as { token?: string };
+      currentToken = body.token ?? null;
+    }
+
+    const cookieHeader = createAuthCookieHeader("", { maxAge: 0 });
+
+    return {
+      status: STATUS_CODES.OK,
+      headers: {
+        "Set-Cookie": cookieHeader,
+        "Content-Type": "application/json",
+      },
+      jsonBody: {
+        message: "Sesión cerrada",
+      },
+    };
+  }
 }
