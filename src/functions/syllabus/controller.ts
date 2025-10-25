@@ -144,6 +144,22 @@ export class SyllabusController implements Updatable {
     return response.ok("Sílabo obtenido correctamente", result);
   }
 
+  // GET /api/syllabus/{id}/evaluacion
+  @route("/{id}/evaluacion", "GET")
+  async getEvaluacion(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const result = await syllabusService.getEvaluacion(id);
+
+    if (!result) {
+      return response.notFound(`No se encontró la fórmula regla con id ${id}`);
+    }
+
+    return response.ok("Fórmula regla obtenida correctamente", result);
+  }
+
   // POST /api/syllabus/estrategias_metodologicas
   @route("/estrategias_metodologicas", "POST")
   async postEstrategiasMetodologicas(

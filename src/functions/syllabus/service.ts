@@ -234,6 +234,32 @@ export class SyllabusService {
     return await syllabusRepository.getRecursosDidacticos(id);
   }
 
+  async getEvaluacion(id: number) {
+    const result = await syllabusRepository.getEvaluacion(id);
+    if (!result) return null;
+
+    const { regla, subformula } = result;
+
+    // 🧩 Concatenar la fórmula principal + variables
+    const formulas: string[] = [];
+
+    // Fórmula principal
+    formulas.push(`${regla.variableFinalCodigo} = ${regla.expresionFinal}`);
+
+    // Fórmulas secundarias
+    for (const v of subformula) {
+      formulas.push(`${v.variableCodigo} = ${v.expresion}`);
+    }
+
+    // Unir con salto de línea
+    const formulaConcatenada = formulas.join("\n");
+
+    return {
+      id: regla.id,
+      formula: formulaConcatenada,
+    };
+  }
+
   async postEstrategiasMetodologicas(body: {
     estrategias_metodologicas: string;
   }) {

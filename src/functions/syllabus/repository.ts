@@ -55,7 +55,6 @@ export class SyllabusRepository {
         horasTeoria: silabo.horasTeoria,
         horasPractica: silabo.horasPractica,
         horasLaboratorio: silabo.horasLaboratorio,
-        horasTotales: silabo.horasTotales,
         horasTeoriaLectivaPresencial: silabo.horasTeoriaLectivaPresencial,
         horasTeoriaLectivaDistancia: silabo.horasTeoriaLectivaDistancia,
         horasTeoriaNoLectivaPresencial: silabo.horasTeoriaNoLectivaPresencial,
@@ -67,7 +66,6 @@ export class SyllabusRepository {
         horasPracticaNoLectivaDistancia: silabo.horasPracticaNoLectivaDistancia,
         creditosTeoria: silabo.creditosTeoria,
         creditosPractica: silabo.creditosPractica,
-        creditosTotales: silabo.creditosTotales,
       })
       .from(silabo)
       .where(eq(silabo.id, id));
@@ -110,7 +108,6 @@ export class SyllabusRepository {
         horasTeoria: syllabusData.horasTeoria ?? null,
         horasPractica: syllabusData.horasPractica ?? null,
         horasLaboratorio: syllabusData.horasLaboratorio ?? null,
-        horasTotales: syllabusData.horasTotales ?? null,
 
         horasTeoriaLectivaPresencial:
           syllabusData.horasTeoriaLectivaPresencial ?? null,
@@ -133,7 +130,6 @@ export class SyllabusRepository {
         // 🧮 Créditos
         creditosTeoria: syllabusData.creditosTeoria ?? null,
         creditosPractica: syllabusData.creditosPractica ?? null,
-        creditosTotales: syllabusData.creditosTotales ?? null,
 
         // 👤 Relaciones (null por ahora, hasta integrar autenticación)
         creadoPorDocenteId: null,
@@ -161,7 +157,7 @@ export class SyllabusRepository {
     await db
       .update(silabo)
       .set({
-        sumilla,
+        //sumilla,
         updatedAt: new Date().toISOString(),
       })
       .where(eq(silabo.id, id));
@@ -304,11 +300,11 @@ export class SyllabusRepository {
 
     const result = await db
       .select({
-        id: silabo.id,
-        estrategiasMetodologicas: silabo.estrategiasMetodologicas,
+        id: schema.silabo.id,
+        estrategiasMetodologicas: schema.silabo.estrategiasMetodologicas,
       })
-      .from(silabo)
-      .where(eq(silabo.id, id));
+      .from(schema.silabo)
+      .where(eq(schema.silabo.id, id));
 
     return result[0] ?? null;
   }
@@ -320,13 +316,46 @@ export class SyllabusRepository {
 
     const result = await db
       .select({
-        id: silabo.id,
-        recursosDidacticos: silabo.recursosDidacticos,
+        id: schema.silabo.id,
+        recursosDidacticos: schema.silabo.recursosDidacticosNotas,
       })
-      .from(silabo)
-      .where(eq(silabo.id, id));
+      .from(schema.silabo)
+      .where(eq(schema.silabo.id, id));
 
     return result[0] ?? null;
+  }
+
+  // Obtener evaluación por ID
+  async getEvaluacion(id: number) {
+    const db = getDb();
+    if (!db) return null;
+
+    // 1️⃣ Obtener la regla principal
+    const regla = await db
+      .select({
+        id: schema.formulaEvaluacionRegla.id,
+        silaboId: schema.formulaEvaluacionRegla.silaboId,
+        variableFinalCodigo: schema.formulaEvaluacionRegla.variableFinalCodigo,
+        expresionFinal: schema.formulaEvaluacionRegla.expresionFinal,
+      })
+      .from(schema.formulaEvaluacionRegla)
+      .where(eq(schema.formulaEvaluacionRegla.id, id));
+
+    if (!regla[0]) return null;
+    const reglaData = regla[0];
+
+    // 2️⃣ Obtener las subformulas asociadas a esa regla
+    const subformula = await db
+      .select({
+        variableCodigo: schema.formulaEvaluacionSubformula.variableCodigo,
+        expresion: schema.formulaEvaluacionSubformula.expresion,
+      })
+      .from(schema.formulaEvaluacionSubformula)
+      .where(
+        eq(schema.formulaEvaluacionSubformula.formulaEvaluacionReglaId, id),
+      );
+
+    return { regla: reglaData, subformula };
   }
 
   // Crear estrategias metodológicas
@@ -335,13 +364,13 @@ export class SyllabusRepository {
     if (!db) return null;
 
     const result = await db
-      .insert(silabo)
+      .insert(schema.silabo)
       .values({
         estrategiasMetodologicas: estrategias,
       })
       .returning({
-        id: silabo.id,
-        estrategiasMetodologicas: silabo.estrategiasMetodologicas,
+        id: schema.silabo.id,
+        estrategiasMetodologicas: schema.silabo.estrategiasMetodologicas,
       });
 
     return result[0] ?? null;
@@ -353,13 +382,13 @@ export class SyllabusRepository {
     if (!db) return null;
 
     const result = await db
-      .insert(silabo)
+      .insert(schema.silabo)
       .values({
-        recursosDidacticos: recursos,
+        recursosDidacticosNotas: recursos,
       })
       .returning({
-        id: silabo.id,
-        recursosDidacticos: silabo.recursosDidacticos,
+        id: schema.silabo.id,
+        recursosDidacticos: schema.silabo.recursosDidacticosNotas,
       });
 
     return result[0] ?? null;
