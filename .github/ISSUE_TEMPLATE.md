@@ -31,9 +31,9 @@ _¿Qué se debe realizar?_
 
 ### 📎 Notas adicionales
 
-<<<<<<< HEAD
+<<<<<<< HEAD:.github/workflows/ISSUE_TEMPLATE.md
 
 =======
 
-> > > > > > > dev
-> > > > > > > _Agregar cualquier detalle extra, enlace o imagen que ayude a entender mejor la tarea_
+> > > > > > > e961225fd11b6f95bee963d3fdce8e70c32c9daf:.github/ISSUE*TEMPLATE.md
+> > > > > > > \_Agregar cualquier detalle extra, enlace o imagen que ayude a entender mejor la tarea*
