@@ -2,20 +2,11 @@ import { syllabusRepository } from "./repostory";
 
 class SyllabusService {
   async getEstrategiasMetodologicas(id: number) {
-    try {
-      const syllabus = await syllabusRepository.getEstrategiasMetodologicas(id);
+    return await syllabusRepository.getEstrategiasMetodologicas(id);
+  }
 
-      if (!syllabus) {
-        return { status: 404, data: { message: "Sílabo no encontrado" } };
-      }
-
-      return {
-        status: 200,
-        data: { estrategias_metodologicas: syllabus.estrategias_metodologicas },
-      };
-    } catch (error) {
-      return { status: 500, data: { message: "Error al obtener estrategias" } };
-    }
+  async getRecursosDidacticos(id: number) {
+    return await syllabusRepository.getRecursosDidacticos(id);
   }
 
   async postEstrategiasMetodologicas(body: {
@@ -25,6 +16,11 @@ class SyllabusService {
     return syllabusRepository.postEstrategiasMetodologicas(
       estrategias_metodologicas,
     );
+  }
+
+  async postRecursosDidacticos(body: { recursos_didacticos: string }) {
+    const { recursos_didacticos } = body;
+    return syllabusRepository.postRecursosDidacticos(recursos_didacticos);
   }
 }
 

@@ -3,27 +3,44 @@ import { getDb } from "../../db/index";
 import { silabo } from "../../../drizzle/schema";
 
 class SyllabusRepository {
-  private db = getDb();
-
   // Obtener estrategias metodológicas por ID
   async getEstrategiasMetodologicas(id: number) {
-    if (!this.db) {
-      throw new Error("Database connection is not initialized.");
-    }
+    const db = getDb();
+    if (!db) return null;
 
-    const result = await this.db
-      .select({ estrategias_metodologicas: silabo.estrategiasMetodologicas })
+    const result = await db
+      .select({
+        id: silabo.id,
+        estrategiasMetodologicas: silabo.estrategiasMetodologicas,
+      })
       .from(silabo)
       .where(eq(silabo.id, id));
 
-    return result[0];
+    return result[0] ?? null;
+  }
+
+  // Obtener recursos didácticos por ID
+  async getRecursosDidacticos(id: number) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .select({
+        id: silabo.id,
+        recursosDidacticos: silabo.recursosDidacticos,
+      })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
+    return result[0] ?? null;
   }
 
   // Crear estrategias metodológicas
   async postEstrategiasMetodologicas(estrategias: string) {
-    if (!this.db) throw new Error("No se pudo conectar a la base de datos");
+    const db = getDb();
+    if (!db) return null;
 
-    const result = await this.db
+    const result = await db
       .insert(silabo)
       .values({
         estrategiasMetodologicas: estrategias,
@@ -33,7 +50,25 @@ class SyllabusRepository {
         estrategiasMetodologicas: silabo.estrategiasMetodologicas,
       });
 
-    return result[0];
+    return result[0] ?? null;
+  }
+
+  // Crear recursos didácticos
+  async postRecursosDidacticos(recursos: string) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .insert(silabo)
+      .values({
+        recursosDidacticos: recursos,
+      })
+      .returning({
+        id: silabo.id,
+        recursosDidacticos: silabo.recursosDidacticos,
+      });
+
+    return result[0] ?? null;
   }
 }
 
