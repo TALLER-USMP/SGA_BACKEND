@@ -25,11 +25,13 @@ export class AssignmentsController implements Listable {
   ): Promise<HttpResponseInit> {
     const codigo = req.query.get("codigo")?.trim() || undefined;
     const nombre = req.query.get("nombre")?.trim() || undefined;
+    const idSilaboParam = req.query.get("idSilabo")?.trim() || undefined;
     const idDocenteParam = req.query.get("idDocente")?.trim() || undefined;
 
     const validation = listQueryParamsSchema.safeParse({
       codigo,
       nombre,
+      idSilabo: idSilaboParam,
       idDocente: idDocenteParam,
     });
 
@@ -48,6 +50,7 @@ export class AssignmentsController implements Listable {
     const items = await assignmentsService.list({
       codigo: filters.codigo,
       nombre: filters.nombre,
+      idSilabo: filters.idSilabo,
       idDocente: filters.idDocente,
     });
 
