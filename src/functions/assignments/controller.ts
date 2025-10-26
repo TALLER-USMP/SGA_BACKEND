@@ -5,12 +5,13 @@ import {
 } from "@azure/functions";
 import { controller, route } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
-import { Readable } from "../../types";
-import { SilaboService } from "./service";
-import { SilaboListItem } from "./types";
+import { Listable, Readable } from "../../types";
+import { assignmentsService } from "./service";
+import { listQueryParamsSchema } from "./types";
+import { AppError } from "../../error";
 
 @controller("assignments")
-export class AssignmentsController implements Readable {
+export class AssignmentsController implements Listable {
   /**
    * Ejemplos:
    * http://localhost:7071/api/assignments/?codigo=TEST101
@@ -22,61 +23,41 @@ export class AssignmentsController implements Readable {
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    try {
-      const codigo =
-        req.query.get("codigo")?.trim() || (await safeBodyParam(req, "codigo"));
-      const nombre =
-        req.query.get("nombre")?.trim() || (await safeBodyParam(req, "nombre"));
-      const idDocenteParam =
-        req.query.get("idDocente")?.trim() ||
-        (await safeBodyParam(req, "idDocente"));
-      const idDocente = idDocenteParam ? Number(idDocenteParam) : undefined;
+    const codigo = req.query.get("codigo")?.trim() || undefined;
+    const nombre = req.query.get("nombre")?.trim() || undefined;
+    const idDocenteParam = req.query.get("idDocente")?.trim() || undefined;
 
-      const items: SilaboListItem[] = await SilaboService.list({
-        codigo: codigo || undefined,
-        nombre: nombre || undefined,
-        idDocente: idDocente || undefined,
-      });
+    const validation = listQueryParamsSchema.safeParse({
+      codigo,
+      nombre,
+      idDocente: idDocenteParam,
+    });
 
-      return {
-        status: STATUS_CODES.OK,
-        headers: { "Content-Type": "application/json" },
-        jsonBody: {
-          message: "Listado de sílabos obtenido correctamente.",
-          data: items,
-        },
-      };
-    } catch (err: any) {
-      context.error("[AssignmentsController][list] Error:", err);
-      return {
-        status: STATUS_CODES.INTERNAL_SERVER_ERROR,
-        jsonBody: {
-          message: "Error al obtener la lista de sílabos.",
-          error: err?.message ?? String(err),
-        },
-      };
+    if (!validation.success) {
+      throw new AppError(
+        "ValidationError",
+        "BAD_REQUEST",
+        "Parámetros de consulta inválidos",
+        validation.error.issues,
+      );
     }
-  }
 
-  async getOne(): Promise<HttpResponseInit> {
+    const filters = validation.data;
+
+    // Llamar al servicio
+    const items = await assignmentsService.list({
+      codigo: filters.codigo,
+      nombre: filters.nombre,
+      idDocente: filters.idDocente,
+    });
+
     return {
-      status: STATUS_CODES.NOT_IMPLEMENTED,
-      jsonBody: { message: "Método getOne aún no implementado." },
+      status: STATUS_CODES.OK,
+      headers: { "Content-Type": "application/json" },
+      jsonBody: {
+        message: "Listado de sílabos obtenido correctamente.",
+        data: items,
+      },
     };
-  }
-}
-
-async function safeBodyParam(
-  req: HttpRequest,
-  key: string,
-): Promise<string | undefined> {
-  try {
-    const body = (await req.json()) as Record<string, unknown>;
-    const value = body[key];
-    if (typeof value === "string") return value;
-    if (typeof value === "number") return String(value);
-    return undefined;
-  } catch {
-    return undefined;
   }
 }
