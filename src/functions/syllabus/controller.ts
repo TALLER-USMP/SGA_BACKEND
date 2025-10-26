@@ -127,15 +127,15 @@ export class SyllabusController implements Updatable {
     return response.ok("Sílabo obtenido correctamente", result);
   }
 
-  //GET /api/syllabus/{id}/recursos_didacticos
-  @route("/{id}/recursos_didacticos", "GET")
-  async getRecursosDidacticos(
+  //GET /api/syllabus/{id}/recursos_didacticos_notas
+  @route("/{id}/recursos_didacticos_notas", "GET")
+  async getRecursosDidacticosNotas(
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
     const idParam = req.params?.id;
     const id = Number(idParam);
-    const result = await syllabusService.getRecursosDidacticos(id);
+    const result = await syllabusService.getRecursosDidacticosNotas(id);
 
     if (!result) {
       return response.notFound(`No se encontró el sílabo con id ${id}`);
@@ -158,6 +158,68 @@ export class SyllabusController implements Updatable {
     }
 
     return response.ok("Fórmula regla obtenida correctamente", result);
+  }
+
+  // PUT /api/syllabus/{id}/estrategias_metodologicas
+  @route("/{id}/estrategias_metodologicas", "PUT")
+  async putEstrategiasMetodologicas(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const idParam = req.params?.id;
+    const id = Number(idParam);
+    const body = (await req.json()) as { estrategias_metodologicas: string };
+
+    if (!id || !body.estrategias_metodologicas) {
+      return response.badRequest(
+        "Debe proporcionar un ID válido y el campo 'estrategias_metodologicas'.",
+      );
+    }
+
+    const result = await syllabusService.putEstrategiasMetodologicas(
+      id,
+      body.estrategias_metodologicas,
+    );
+
+    if (!result) {
+      return response.notFound(`No se encontró el sílabo con id ${id}`);
+    }
+
+    return response.ok(
+      "Estrategia Metodológica actualizada correctamente",
+      result,
+    );
+  }
+
+  // PUT /api/syllabus/{id}/recursos_didacticos_notas
+  @route("/{id}/recursos_didacticos_notas", "PUT")
+  async putRecursosDidacticosNotas(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const idParam = req.params?.id;
+    const id = Number(idParam);
+    const body = (await req.json()) as { recursos_didacticos_notas: string };
+
+    if (!id || !body.recursos_didacticos_notas) {
+      return response.badRequest(
+        "Debe proporcionar un ID válido y el campo 'recursos_didacticos_notas'.",
+      );
+    }
+
+    const result = await syllabusService.putRecursosDidacticosNotas(
+      id,
+      body.recursos_didacticos_notas,
+    );
+
+    if (!result) {
+      return response.notFound(`No se encontró el sílabo con id ${id}`);
+    }
+
+    return response.ok(
+      "Recursos Didacticos Notas actualizada correctamente",
+      result,
+    );
   }
 
   // POST /api/syllabus/estrategias_metodologicas
@@ -184,19 +246,21 @@ export class SyllabusController implements Updatable {
     return response.created("Sílabo creado correctamente", newSyllabus);
   }
 
-  // POST /api/syllabus/recursos_didacticos
-  @route("/recursos_didacticos", "POST")
-  async postRecursosDidacticos(
+  // POST /api/syllabus/recursos_didacticos_notas
+  @route("/recursos_didacticos_notas", "POST")
+  async postRecursosDidacticosNotas(
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const body = (await req.json()) as { recursos_didacticos: string };
+    const body = (await req.json()) as { recursos_didacticos_notas: string };
 
-    if (!body.recursos_didacticos) {
-      return response.badRequest("El campo 'recursos_didacticos' es requerido");
+    if (!body.recursos_didacticos_notas) {
+      return response.badRequest(
+        "El campo 'recursos_didacticos_notas' es requerido",
+      );
     }
 
-    const newSyllabus = await syllabusService.postRecursosDidacticos(body);
+    const newSyllabus = await syllabusService.postRecursosDidacticosNotas(body);
 
     if (!newSyllabus) {
       return response.serverError("No se pudo crear el sílabo");

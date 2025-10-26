@@ -230,8 +230,8 @@ export class SyllabusService {
     return await syllabusRepository.getEstrategiasMetodologicas(id);
   }
 
-  async getRecursosDidacticos(id: number) {
-    return await syllabusRepository.getRecursosDidacticos(id);
+  async getRecursosDidacticosNotas(id: number) {
+    return await syllabusRepository.getRecursosDidacticosNotas(id);
   }
 
   async getEvaluacion(id: number) {
@@ -260,6 +260,17 @@ export class SyllabusService {
     };
   }
 
+  async putEstrategiasMetodologicas(id: number, estrategias: string) {
+    return await syllabusRepository.putEstrategiasMetodologicas(
+      id,
+      estrategias,
+    );
+  }
+
+  async putRecursosDidacticosNotas(id: number, recursos: string) {
+    return await syllabusRepository.putRecursosDidacticosNotas(id, recursos);
+  }
+
   async postEstrategiasMetodologicas(body: {
     estrategias_metodologicas: string;
   }) {
@@ -269,9 +280,13 @@ export class SyllabusService {
     );
   }
 
-  async postRecursosDidacticos(body: { recursos_didacticos: string }) {
-    const { recursos_didacticos } = body;
-    return syllabusRepository.postRecursosDidacticos(recursos_didacticos);
+  async postRecursosDidacticosNotas(body: {
+    recursos_didacticos_notas: string;
+  }) {
+    const { recursos_didacticos_notas } = body;
+    return syllabusRepository.postRecursosDidacticosNotas(
+      recursos_didacticos_notas,
+    );
   }
 }
 

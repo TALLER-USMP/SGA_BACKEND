@@ -310,14 +310,14 @@ export class SyllabusRepository {
   }
 
   // Obtener recursos didácticos por ID
-  async getRecursosDidacticos(id: number) {
+  async getRecursosDidacticosNotas(id: number) {
     const db = getDb();
     if (!db) return null;
 
     const result = await db
       .select({
         id: schema.silabo.id,
-        recursosDidacticos: schema.silabo.recursosDidacticosNotas,
+        recursosDidacticosNotas: schema.silabo.recursosDidacticosNotas,
       })
       .from(schema.silabo)
       .where(eq(schema.silabo.id, id));
@@ -358,6 +358,34 @@ export class SyllabusRepository {
     return { regla: reglaData, subformula };
   }
 
+  // Actualizar estrategias metodológicas por ID
+  async putEstrategiasMetodologicas(id: number, estrategias: string) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .update(schema.silabo)
+      .set({ estrategiasMetodologicas: estrategias })
+      .where(eq(schema.silabo.id, id))
+      .returning({ id: schema.silabo.id });
+
+    return result[0] ?? null;
+  }
+
+  // Actualizar recursos didácticos por ID
+  async putRecursosDidacticosNotas(id: number, recursos: string) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .update(schema.silabo)
+      .set({ recursosDidacticosNotas: recursos })
+      .where(eq(schema.silabo.id, id))
+      .returning({ id: schema.silabo.id });
+
+    return result[0] ?? null;
+  }
+
   // Crear estrategias metodológicas
   async postEstrategiasMetodologicas(estrategias: string) {
     const db = getDb();
@@ -377,7 +405,7 @@ export class SyllabusRepository {
   }
 
   // Crear recursos didácticos
-  async postRecursosDidacticos(recursos: string) {
+  async postRecursosDidacticosNotas(recursos: string) {
     const db = getDb();
     if (!db) return null;
 
@@ -388,7 +416,7 @@ export class SyllabusRepository {
       })
       .returning({
         id: schema.silabo.id,
-        recursosDidacticos: schema.silabo.recursosDidacticosNotas,
+        recursosDidacticosNotas: schema.silabo.recursosDidacticosNotas,
       });
 
     return result[0] ?? null;
