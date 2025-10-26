@@ -8,6 +8,7 @@ import { controller, route } from "../../lib/decorators";
 import { syllabusService } from "./service";
 import { AppError } from "../../error";
 import { isThrowStatement } from "typescript";
+import { STATUS_CODES } from "../../status-codes";
 
 //1
 @controller("syllabus")
@@ -109,14 +110,21 @@ export class SyllabusController implements Updatable {
     throw new Error("not implemented");
   }
 
-  @route("/{id}/datos-generales", "GET")
+  @route("/{syllabusId}/datos-generales", "GET")
   async getGeneralData(
     req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const { syllabusId } = req.params as { syllabusId: string };
-    const items = await syllabusService.getComponents(syllabusId);
-    return { status: 200, jsonBody: { items } };
+    const id = Number(syllabusId);
+    if (Number.isNaN(id)) {
+      return {
+        status: STATUS_CODES.BAD_REQUEST,
+        jsonBody: { name: "BadRequest", message: "syllabusId inválido" },
+      };
+    }
+    const data = await syllabusService.getGeneralDataSyllabusById(id);
+    return { status: STATUS_CODES.OK, jsonBody: data };
   }
 
   // POST /api/syllabus/:syllabusId/components
@@ -129,7 +137,7 @@ export class SyllabusController implements Updatable {
     const id = Number(req.params.id);
     const result = await syllabusService.getGeneralDataSyllabusById(id);
     return {
-      status: 200,
+      status: STATUS_CODES.OK,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(result, null, 2),
     };

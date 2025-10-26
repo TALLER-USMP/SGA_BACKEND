@@ -38,6 +38,10 @@ class AssignmentsRepository {
         );
       }
 
+      if (filters?.idSilabo !== undefined) {
+        conditions.push(eq(silabo.id, filters.idSilabo));
+      }
+
       if (filters?.idDocente !== undefined) {
         conditions.push(eq(silaboDocente.docenteId, filters.idDocente));
       }
@@ -47,6 +51,7 @@ class AssignmentsRepository {
           cursoCodigo: silabo.cursoCodigo,
           cursoNombre: silabo.cursoNombre,
           estadoRevision: silabo.estadoRevision,
+          syllabusId: silabo.id,
           docenteId: silaboDocente.docenteId,
         })
         .from(silabo)
@@ -66,6 +71,7 @@ class AssignmentsRepository {
         cursoCodigo: r.cursoCodigo ?? null,
         cursoNombre: r.cursoNombre ?? null,
         estadoRevision: r.estadoRevision ?? null,
+        syllabusId: r.syllabusId,
         docenteId: r.docenteId ?? null,
       }));
     } catch (error) {
