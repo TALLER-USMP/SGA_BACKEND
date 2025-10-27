@@ -1,27 +1,18 @@
-import { SilaboRepository } from "./repository";
-import type { SilaboListItem, SilaboFilters } from "./types";
-import { silaboFiltersSchema } from "./types";
+import { z } from "zod";
+import { PermissionsSchema } from "../permissions/types";
 import { AppError } from "../../error";
 
-class AssignmentsService {
-  async list(filters?: SilaboFilters): Promise<SilaboListItem[]> {
-    // Validar filtros con Zod si se proporcionan
-    if (filters) {
-      const validation = silaboFiltersSchema.safeParse(filters);
-      if (!validation.success) {
-        throw new AppError(
-          "ValidationError",
-          "BAD_REQUEST",
-          "Filtros inválidos proporcionados",
-          validation.error.issues,
-        );
-      }
+class MessagesService {
+  async sendMessage(body: unknown) {
+    const parsed = PermissionsSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new AppError(
+        "ERROR_PARAMETROS",
+        "BAD_REQUEST",
+        parsed.error.message,
+      );
     }
-
-    const items = await SilaboRepository.getAll(filters);
-
-    return items;
   }
 }
 
-export const assignmentsService = new AssignmentsService();
+export const messagesService = new MessagesService();

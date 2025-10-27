@@ -54,38 +54,4 @@ export class PermissionsController implements Updatable {
       jsonBody: { message: "Permisos asignados correctamente" },
     };
   }
-
-  // @route("/", "GET")
-  // async filterAsignatures(
-  //   _req: HttpRequest,
-  //   _ctx: InvocationContext
-  // ): Promise<HttpResponseInit> {
-  //   const filter = _req.query.get("filtro") as "areaCurricular" | "nombreCurso";
-  //   if (!filter) {
-  //     throw new AppError(
-  //       "ERROR_PARAMETROS",
-  //       "BAD_REQUEST",
-  //       "Falta el parámetro level"
-  //     );
-  //   }
-  //   const assignaturesResult =
-  //     await permissionsService.getAssignaturesByFilter(filter);
-  //   return {
-  //     status: STATUS_CODES.OK,
-  //     jsonBody: { message: "Permisos asignados correctamente" },
-  //   };
-  // }
-
-  // @route("/", "POST")
-  // async sendMessage(
-  //   _req: HttpRequest,
-  //   _ctx: InvocationContext
-  // ): Promise<HttpResponseInit> {
-  //   const body = _req.body;
-  //   await permissionsService.sendEmail(body);
-  //   return {
-  //     status: STATUS_CODES.OK,
-  //     jsonBody: { message: "Permisos asignados correctamente" },
-  //   };
-  // }
 }

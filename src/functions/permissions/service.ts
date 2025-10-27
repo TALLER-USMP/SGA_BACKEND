@@ -27,10 +27,6 @@ export class PermissionsService {
       parsed.data.permisos,
     );
   }
-
-  async sendEmail(body: unknown) {
-    return [];
-  }
 }
 
 export const permissionsService = new PermissionsService();
