@@ -243,7 +243,7 @@ export class SyllabusService {
     const { estadoRevision } = parsed.data;
 
     // 🔍 Verificar si ya tiene ese estado antes de actualizar
-    const current = await syllabusRepository.getEstadoById(id);
+    const current = await syllabusRepository.getStateById(id);
     if (!current) {
       throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
     }
@@ -256,7 +256,7 @@ export class SyllabusService {
     }
 
     // 🔄 Actualizar el estado
-    await syllabusRepository.updateRevisionStatus(id, estadoRevision);
+    await syllabusRepository.updateReviewStatus(id, estadoRevision);
 
     return {
       ok: true,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const AporteCreateSchema = z.object({
+export const ContributionCreateSchema = z.object({
   silaboId: z.number().min(1, { message: "El ID del sílabo es obligatorio" }),
   resultadoProgramaCodigo: z
     .string()
@@ -14,4 +14,4 @@ export const AporteCreateSchema = z.object({
     .default(""),
 });
 
-export type AporteCreateType = z.infer<typeof AporteCreateSchema>;
+export type ContributionCreateType = z.infer<typeof ContributionCreateSchema>;

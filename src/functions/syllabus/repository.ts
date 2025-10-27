@@ -296,7 +296,7 @@ export class SyllabusRepository {
       );
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
   }
-  async getEstadoById(id: number) {
+  async getStateById(id: number) {
     const db = getDbOrThrow();
     const result = await db
       .select({
@@ -308,7 +308,7 @@ export class SyllabusRepository {
     return result[0] || null;
   }
 
-  async updateRevisionStatus(id: number, estadoRevision: string) {
+  async updateReviewStatus(id: number, estadoRevision: string) {
     const db = getDbOrThrow();
     await db
       .update(silabo)

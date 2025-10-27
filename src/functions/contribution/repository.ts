@@ -3,14 +3,14 @@ import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import { silaboAporteResultadoPrograma } from "../../../drizzle/schema";
 
-class AporteRepository {
+class ContributionRepository {
   private db: NodePgDatabase<typeof schema>;
 
   constructor() {
     this.db = getDb() as unknown as NodePgDatabase<typeof schema>;
   }
 
-  async createAporte(data: {
+  async createContribution(data: {
     silaboId: number;
     resultadoProgramaCodigo: string;
     resultadoProgramaDescripcion?: string;
@@ -30,4 +30,4 @@ class AporteRepository {
   }
 }
 
-export const aporteRepository = new AporteRepository();
+export const contributionRepository = new ContributionRepository();

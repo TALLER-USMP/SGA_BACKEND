@@ -182,23 +182,19 @@ export class SyllabusController implements Updatable {
     return { status: 200, jsonBody: res };
   }
 
-  @route("/{id}/estado", "PUT")
-  async updateEstado(
+  @route("/{syllabusId}/estado", "PUT")
+  async updateState(
     req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
     if (isNaN(id)) {
-      return { status: 400, jsonBody: { ok: false, message: "ID inválido" } };
+      throw new AppError("BadRequest", "BAD_REQUEST", "ID inválido");
     }
 
     const body = await req.json();
+    const result = await syllabusService.updateRevisionStatus(id, body);
 
-    try {
-      const result = await syllabusService.updateRevisionStatus(id, body);
-      return { status: 200, jsonBody: { ...result } };
-    } catch (err: any) {
-      return { status: 400, jsonBody: { ok: false, message: err.message } };
-    }
+    return { status: 200, jsonBody: result };
   }
 }
