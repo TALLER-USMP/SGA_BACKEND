@@ -5,8 +5,14 @@ import * as schema from "../../../drizzle/schema";
 import {
   silaboCompetenciaCurso,
   silaboCompetenciaComponente,
+  silabo,
+  silaboDocente,
+  docente,
 } from "../../../drizzle/schema";
 import { AppError } from "../../error";
+import { z } from "zod";
+import { SyllabusCreateSchema } from "./types";
+
 //1
 type Upsertable = { id?: number | string; text: string; order?: number | null };
 type CreateItem = { text: string; order?: number | null; code?: string | null };
@@ -26,6 +32,151 @@ function getDbOrThrow(): NodePgDatabase<typeof schema> {
 }
 
 export class SyllabusRepository {
+  //---------- DATOS GENERALES (silabo) ----------
+  async findGeneralDataById(id: number) {
+    const db = getDbOrThrow();
+    if (!db)
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Database not connected",
+      );
+    const silaboResult = await db
+      .select({
+        nombreAsignatura: silabo.cursoNombre,
+        departamentoAcademico: silabo.departamentoAcademico,
+        escuelaProfesional: silabo.escuelaProfesional,
+        programaAcademico: silabo.programaAcademico,
+        semestreAcademico: silabo.semestreAcademico,
+        tipoAsignatura: silabo.tipoAsignatura,
+        tipoEstudios: silabo.tipoDeEstudios,
+        modalidad: silabo.modalidadDeAsignatura,
+        codigoAsignatura: silabo.cursoCodigo,
+        ciclo: silabo.ciclo,
+        requisitos: silabo.requisitos,
+        horasTeoria: silabo.horasTeoria,
+        horasPractica: silabo.horasPractica,
+        horasLaboratorio: silabo.horasLaboratorio,
+        horasTotales: silabo.horasTotales,
+        horasTeoriaLectivaPresencial: silabo.horasTeoriaLectivaPresencial,
+        horasTeoriaLectivaDistancia: silabo.horasTeoriaLectivaDistancia,
+        horasTeoriaNoLectivaPresencial: silabo.horasTeoriaNoLectivaPresencial,
+        horasTeoriaNoLectivaDistancia: silabo.horasTeoriaNoLectivaDistancia,
+        horasPracticaLectivaPresencial: silabo.horasPracticaLectivaPresencial,
+        horasPracticaLectivaDistancia: silabo.horasPracticaLectivaDistancia,
+        horasPracticaNoLectivaPresencial:
+          silabo.horasPracticaNoLectivaPresencial,
+        horasPracticaNoLectivaDistancia: silabo.horasPracticaNoLectivaDistancia,
+        creditosTeoria: silabo.creditosTeoria,
+        creditosPractica: silabo.creditosPractica,
+        creditosTotales: silabo.creditosTotales,
+      })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
+    const docentes = await db
+      .select({ nombreDocente: docente.nombreDocente })
+      .from(silaboDocente)
+      .innerJoin(docente, eq(silaboDocente.docenteId, docente.id))
+      .where(eq(silaboDocente.silaboId, id));
+
+    const docentesNombres = docentes.map((d) => d.nombreDocente);
+    const docentesString =
+      docentesNombres.length === 1
+        ? docentesNombres[0]
+        : docentesNombres.join(", ");
+
+    return {
+      ...silaboResult[0],
+      docentes: docentesString,
+    };
+  }
+
+  async create(syllabusData: z.infer<typeof SyllabusCreateSchema>) {
+    const db = getDbOrThrow();
+    if (!db)
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Database not connected",
+      );
+    const result = await db
+      .insert(silabo)
+      .values({
+        departamentoAcademico: syllabusData.departamentoAcademico,
+        escuelaProfesional: syllabusData.escuelaProfesional,
+        programaAcademico: syllabusData.programaAcademico,
+        cursoCodigo: syllabusData.codigoAsignatura,
+        cursoNombre: syllabusData.nombreAsignatura,
+        semestreAcademico: syllabusData.semestreAcademico,
+        tipoAsignatura: syllabusData.tipoAsignatura,
+        tipoDeEstudios: syllabusData.tipoEstudios,
+        modalidadDeAsignatura: syllabusData.modalidad,
+        ciclo: syllabusData.ciclo,
+
+        requisitos: syllabusData.requisitos || null,
+
+        // 🕒 Horas
+        horasTeoria: syllabusData.horasTeoria ?? null,
+        horasPractica: syllabusData.horasPractica ?? null,
+        horasLaboratorio: syllabusData.horasLaboratorio ?? null,
+        horasTotales: syllabusData.horasTotales ?? null,
+
+        horasTeoriaLectivaPresencial:
+          syllabusData.horasTeoriaLectivaPresencial ?? null,
+        horasTeoriaLectivaDistancia:
+          syllabusData.horasTeoriaLectivaDistancia ?? null,
+        horasTeoriaNoLectivaPresencial:
+          syllabusData.horasTeoriaNoLectivaPresencial ?? null,
+        horasTeoriaNoLectivaDistancia:
+          syllabusData.horasTeoriaNoLectivaDistancia ?? null,
+
+        horasPracticaLectivaPresencial:
+          syllabusData.horasPracticaLectivaPresencial ?? null,
+        horasPracticaLectivaDistancia:
+          syllabusData.horasPracticaLectivaDistancia ?? null,
+        horasPracticaNoLectivaPresencial:
+          syllabusData.horasPracticaNoLectivaPresencial ?? null,
+        horasPracticaNoLectivaDistancia:
+          syllabusData.horasPracticaNoLectivaDistancia ?? null,
+
+        // 🧮 Créditos
+        creditosTeoria: syllabusData.creditosTeoria ?? null,
+        creditosPractica: syllabusData.creditosPractica ?? null,
+        creditosTotales: syllabusData.creditosTotales ?? null,
+
+        // 👤 Relaciones (null por ahora, hasta integrar autenticación)
+        creadoPorDocenteId: null,
+        actualizadoPorDocenteId: null,
+        asignadoADocenteId: null,
+
+        // 🟢 Estado inicial por defecto
+        estadoRevision: "",
+      })
+      .returning({ id: silabo.id });
+
+    //const idSyllabus = [{ id: 1 }]; // simula el ID retornado
+
+    return result[0].id;
+  }
+
+  async updateSumilla(id: number, sumilla: string) {
+    const db = getDbOrThrow();
+    if (!db)
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Database not connected",
+      );
+    await db
+      .update(silabo)
+      .set({
+        sumilla,
+        updatedAt: new Date().toISOString(),
+      } as any)
+      .where(eq(silabo.id, id));
+  }
+
   // ---------- COMPETENCIAS (silabo_competencia_curso) ----------
   listCompetencies(syllabusId: number | string) {
     const db = getDbOrThrow();
