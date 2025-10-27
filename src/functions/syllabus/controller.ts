@@ -196,7 +196,7 @@ export class SyllabusController implements Updatable {
 
     try {
       const result = await syllabusService.updateRevisionStatus(id, body);
-      return { status: 200, jsonBody: { ok: true, ...result } };
+      return { status: 200, jsonBody: { ...result } };
     } catch (err: any) {
       return { status: 400, jsonBody: { ok: false, message: err.message } };
     }

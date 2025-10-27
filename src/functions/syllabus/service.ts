@@ -227,9 +227,9 @@ export class SyllabusService {
   }
 
   async updateRevisionStatus(id: number, payload: unknown) {
-    // Validar payload
+    // Validar payload con Zod
     const schema = z.object({
-      estadoRevision: z.enum(["PENDIENTE", "REVISION"]), // solo estas opciones
+      estadoRevision: z.enum(["PENDIENTE", "REVISION"]),
     });
 
     const parsed = schema.safeParse(payload);
@@ -242,10 +242,26 @@ export class SyllabusService {
 
     const { estadoRevision } = parsed.data;
 
-    // Actualizar en repository
+    // 🔍 Verificar si ya tiene ese estado antes de actualizar
+    const current = await syllabusRepository.getEstadoById(id);
+    if (!current) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+
+    if (current.estadoRevision === estadoRevision) {
+      return {
+        ok: false,
+        message: `El estado ya está asignado como ${estadoRevision}`,
+      };
+    }
+
+    // 🔄 Actualizar el estado
     await syllabusRepository.updateRevisionStatus(id, estadoRevision);
 
-    return { message: `Estado actualizado a ${estadoRevision} correctamente` };
+    return {
+      ok: true,
+      message: `Estado actualizado a ${estadoRevision} correctamente`,
+    };
   }
 }
 

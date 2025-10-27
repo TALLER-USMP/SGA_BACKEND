@@ -296,23 +296,27 @@ export class SyllabusRepository {
       );
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
   }
+  async getEstadoById(id: number) {
+    const db = getDbOrThrow();
+    const result = await db
+      .select({
+        estadoRevision: silabo.estadoRevision,
+      })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
+    return result[0] || null;
+  }
 
   async updateRevisionStatus(id: number, estadoRevision: string) {
     const db = getDbOrThrow();
-
-    // Validar ID
-    if (isNaN(id)) {
-      throw new AppError("BadRequest", "BAD_REQUEST", "ID inválido");
-    }
-
-    const result = await db
+    await db
       .update(silabo)
       .set({
         estadoRevision,
         updatedAt: new Date().toISOString(),
       })
       .where(eq(silabo.id, id));
-
     return { ok: true };
   }
 }
