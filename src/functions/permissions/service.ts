@@ -5,76 +5,29 @@ import { z } from "zod";
 import { PermissionsSchema } from "./types";
 
 export class PermissionsService {
-  async getAllSyllabusDocente() {
-    try {
-      const rows = await permissionsRepository.findAllSyllabusDocente();
-      const result = rows.map((r) => ({
-        id: r.id,
-        silabo: {
-          silaboId: r.silaboId,
-          cursoNombre: r.cursoNombre,
-        },
-        docente: {
-          docenteId: r.docenteId,
-          nombreDocente: r.nombreDocente,
-        },
-      }));
-
-      return result;
-    } catch (error) {
-      throw new AppError(
-        "PermissionsServiceError",
-        "INTERNAL_SERVER_ERROR",
-        "Error al obtener los syllabus del docente",
-      );
-    }
-  }
-
-  async getPermissionsByLevel(
-    level: "micro" | "macro",
-    silaboDocenteId?: number,
-  ) {
-    if (level === "macro") {
-      return await permissionsRepository.findAllPermissions();
-    }
-    // Excluir secciones según los criterios de la HU
-    const excluded = [
-      "datos_generales",
-      "sumilla",
-      "competencias",
-      "componentes",
-    ];
-    const silaboDocente = await permissionsRepository.findSyllaboDocenteById(
-      silaboDocenteId as number,
-    );
-    log(silaboDocenteId);
-    if (silaboDocente.length === 0) {
-      throw new AppError(
-        "PermissionsServiceError",
-        "NOT_FOUND",
-        "No se encontró el silaboDocenteId proporcionado",
-      );
-    }
-    const nameDocente = silaboDocente[0].nombreDocente;
-
-    const permissionsDocente = await (
-      await permissionsRepository.findAllPermissions()
-    ).filter((p) => !excluded.includes(p.section));
-
-    return {
-      nombreDocente: nameDocente,
-      permissions: permissionsDocente,
-    };
+  async getPermissionsByDocenteId(docenteId: number) {
+    const result =
+      await permissionsRepository.findPermissionsByDocenteId(docenteId);
+    return result;
   }
 
   async assignPermissions(body: unknown) {
-    const data = PermissionsSchema.parse(body);
-    const result = await permissionsRepository.savePermissions(data);
+    const parsed = PermissionsSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new AppError(
+        "PermissionsServiceError",
+        "BAD_REQUEST",
+        "Error de validación",
+        parsed.error.flatten().fieldErrors,
+      );
+    }
+    return await permissionsRepository.savePermissionsBySilaboIdAndDocenteId(
+      parsed.data.silaboId,
+      parsed.data.docenteId,
+      parsed.data.permisos,
+    );
   }
 
-  async getAssignaturesByFilter(filter: "nombreCurso" | "areaCurricular") {
-    return [];
-  }
   async sendEmail(body: unknown) {
     return [];
   }
