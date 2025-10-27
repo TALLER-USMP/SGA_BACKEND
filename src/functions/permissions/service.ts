@@ -1,6 +1,8 @@
 import { log } from "console";
 import { AppError } from "../../error";
 import { permissionsRepository } from "./repository";
+import { z } from "zod";
+import { PermissionsSchema } from "./types";
 
 export class PermissionsService {
   async getAllSyllabusDocente() {
@@ -63,6 +65,18 @@ export class PermissionsService {
       nombreDocente: nameDocente,
       permissions: permissionsDocente,
     };
+  }
+
+  async assignPermissions(body: unknown) {
+    const data = PermissionsSchema.parse(body);
+    const result = await permissionsRepository.savePermissions(data);
+  }
+
+  async getAssignaturesByFilter(filter: "nombreCurso" | "areaCurricular") {
+    return [];
+  }
+  async sendEmail(body: unknown) {
+    return [];
   }
 }
 
