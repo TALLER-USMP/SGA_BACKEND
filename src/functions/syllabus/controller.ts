@@ -182,7 +182,7 @@ export class SyllabusController implements Updatable {
     return { status: 200, jsonBody: res };
   }
 
-  @route("/{syllabusId}/estado", "PUT")
+  @route("/{syllabusId}/state", "PUT")
   async updateState(
     req: HttpRequest,
     _ctx: InvocationContext,
