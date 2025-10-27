@@ -296,6 +296,25 @@ export class SyllabusRepository {
       );
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
   }
+
+  async updateRevisionStatus(id: number, estadoRevision: string) {
+    const db = getDbOrThrow();
+
+    // Validar ID
+    if (isNaN(id)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "ID inválido");
+    }
+
+    const result = await db
+      .update(silabo)
+      .set({
+        estadoRevision,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(silabo.id, id));
+
+    return { ok: true };
+  }
 }
 
 export const syllabusRepository = new SyllabusRepository();

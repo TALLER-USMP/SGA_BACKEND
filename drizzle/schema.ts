@@ -117,7 +117,7 @@ export const silabo = pgTable(
     recursosDidacticos: text("recursos_didacticos"),
     politicas: text(),
     observaciones: text(),
-    estadoRevision: varchar("estado_revision").default("ASIGNADO").notNull(),
+    estadoRevision: varchar("estado").default("ASIGNADO").notNull(),
     asignadoADocenteId: integer("asignado_a_docente_id"),
     creadoPorDocenteId: integer("creado_por_docente_id"),
     actualizadoPorDocenteId: integer("actualizado_por_docente_id"),

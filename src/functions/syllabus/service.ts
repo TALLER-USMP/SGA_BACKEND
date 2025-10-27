@@ -7,7 +7,7 @@ import {
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
 import { AppError } from "../../error";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 
 export class SyllabusService {
   // ---------- COMPETENCIAS ----------
@@ -224,6 +224,28 @@ export class SyllabusService {
     await syllabusRepository.updateSumilla(idSyllabus, sumilla);
 
     return { message: "Sumilla registrada correctamente" };
+  }
+
+  async updateRevisionStatus(id: number, payload: unknown) {
+    // Validar payload
+    const schema = z.object({
+      estadoRevision: z.enum(["PENDIENTE", "REVISION"]), // solo estas opciones
+    });
+
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
+    const { estadoRevision } = parsed.data;
+
+    // Actualizar en repository
+    await syllabusRepository.updateRevisionStatus(id, estadoRevision);
+
+    return { message: `Estado actualizado a ${estadoRevision} correctamente` };
   }
 }
 
