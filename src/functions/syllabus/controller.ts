@@ -7,6 +7,7 @@ import { Updatable } from "../../types"; // tu interfaz
 import { controller, route } from "../../lib/decorators";
 import { syllabusService } from "./service";
 import { AppError } from "../../error";
+import { ContributionCreateSchema } from "./types";
 import { isThrowStatement } from "typescript";
 
 //1
@@ -180,6 +181,42 @@ export class SyllabusController implements Updatable {
     const { syllabusId, id } = req.params as { syllabusId: string; id: string };
     const res = await syllabusService.removeAttitude(syllabusId, id);
     return { status: 200, jsonBody: res };
+  }
+
+  @route("/{syllabusId}/contribution", "POST")
+  async createContribution(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const { syllabusId } = req.params as { syllabusId: string };
+    const body = (await req.json()) as Record<string, unknown>;
+
+    // Validación con Zod
+    const parsed = ContributionCreateSchema.safeParse({
+      ...(body || {}),
+      syllabusId: Number(syllabusId), // 👈 conversión correcta aquí
+    });
+
+    if (!parsed.success) {
+      return {
+        status: 400,
+        jsonBody: {
+          message: "Datos inválidos en el cuerpo de la solicitud",
+          errors: parsed.error.issues,
+        },
+      };
+    }
+
+    const aporteData = parsed.data;
+    const result = await syllabusService.createAporte(aporteData);
+
+    return {
+      status: 201,
+      jsonBody: {
+        message: "Aporte registrado correctamente",
+        result,
+      },
+    };
   }
 
   @route("/{syllabusId}/state", "PUT")

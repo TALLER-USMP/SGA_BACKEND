@@ -319,6 +319,26 @@ export class SyllabusRepository {
       .where(eq(silabo.id, id));
     return { ok: true };
   }
+
+  async createContribution(data: {
+    syllabusId: number;
+    resultadoProgramaCodigo: string;
+    resultadoProgramaDescripcion?: string;
+    aporteValor: "" | "K" | "R";
+  }) {
+    const db = getDbOrThrow();
+    const result = await db
+      .insert(schema.silaboAporteResultadoPrograma)
+      .values({
+        silaboId: data.syllabusId,
+        resultadoProgramaCodigo: data.resultadoProgramaCodigo,
+        resultadoProgramaDescripcion: data.resultadoProgramaDescripcion,
+        aporteValor: data.aporteValor,
+      })
+      .returning();
+
+    return result[0];
+  }
 }
 
 export const syllabusRepository = new SyllabusRepository();

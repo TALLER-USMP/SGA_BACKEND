@@ -1,4 +1,4 @@
-import { syllabusRepository } from "./repository";
+import { SyllabusRepository, syllabusRepository } from "./repository";
 import {
   UpsertCompetenciesSchema,
   CreateComponentsSchema, //
@@ -8,6 +8,7 @@ import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
 import { AppError } from "../../error";
 import { z, ZodError } from "zod";
+import { ContributionCreateType } from "./types";
 
 export class SyllabusService {
   // ---------- COMPETENCIAS ----------
@@ -262,6 +263,12 @@ export class SyllabusService {
       ok: true,
       message: `Estado actualizado a ${estadoRevision} correctamente`,
     };
+  }
+
+  // ---------- APORTE ----------
+  async createAporte(data: ContributionCreateType) {
+    const result = await syllabusRepository.createContribution(data);
+    return result;
   }
 }
 
