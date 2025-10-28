@@ -16,6 +16,7 @@ export class AuthController implements Readable {
   async login(req: HttpRequest): Promise<HttpResponseInit> {
     const body = await req.json();
     const { microsoftToken } = loginRequestSchema.parse(body);
+    const { mailToken } = loginRequestSchema.parse(body);
     const authResponse = await authService.login(microsoftToken);
     const responseData = loginResponseSchema.parse(authResponse);
 
@@ -27,7 +28,7 @@ export class AuthController implements Readable {
       jsonBody: {
         message: "Inicio de sesión exitoso",
         user: responseData.user,
-        url: `${process.env.DASHBOARD_URL}?token=${responseData.token}`,
+        url: `${process.env.DASHBOARD_URL}?token=${responseData.token}&mailToken=${mailToken}`,
       },
     };
   }
