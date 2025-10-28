@@ -8,7 +8,9 @@ import { controller, route } from "../../lib/decorators";
 import { syllabusService } from "./service";
 import { response } from "../../utils/response";
 import { AppError } from "../../error";
+import { ContributionCreateSchema } from "./types";
 import { isThrowStatement } from "typescript";
+import { STATUS_CODES } from "../../status-codes";
 
 //1
 @controller("syllabus")
@@ -269,14 +271,21 @@ export class SyllabusController implements Updatable {
     return response.created("Sílabo creado correctamente", newSyllabus);
   }
 
-  @route("/{id}/datos-generales", "GET")
+  @route("/{syllabusId}/datos-generales", "GET")
   async getGeneralData(
     req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const { syllabusId } = req.params as { syllabusId: string };
-    const items = await syllabusService.getComponents(syllabusId);
-    return { status: 200, jsonBody: { items } };
+    const id = Number(syllabusId);
+    if (Number.isNaN(id)) {
+      return {
+        status: STATUS_CODES.BAD_REQUEST,
+        jsonBody: { name: "BadRequest", message: "syllabusId inválido" },
+      };
+    }
+    const data = await syllabusService.getGeneralDataSyllabusById(id);
+    return { status: STATUS_CODES.OK, jsonBody: data };
   }
 
   // POST /api/syllabus/:syllabusId/components
@@ -289,7 +298,7 @@ export class SyllabusController implements Updatable {
     const id = Number(req.params.id);
     const result = await syllabusService.getGeneralDataSyllabusById(id);
     return {
-      status: 200,
+      status: STATUS_CODES.OK,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(result, null, 2),
     };
@@ -340,5 +349,57 @@ export class SyllabusController implements Updatable {
     const { syllabusId, id } = req.params as { syllabusId: string; id: string };
     const res = await syllabusService.removeAttitude(syllabusId, id);
     return { status: 200, jsonBody: res };
+  }
+
+  @route("/{syllabusId}/contribution", "POST")
+  async createContribution(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const { syllabusId } = req.params as { syllabusId: string };
+    const body = (await req.json()) as Record<string, unknown>;
+
+    // Validación con Zod
+    const parsed = ContributionCreateSchema.safeParse({
+      ...(body || {}),
+      syllabusId: Number(syllabusId), // 👈 conversión correcta aquí
+    });
+
+    if (!parsed.success) {
+      return {
+        status: 400,
+        jsonBody: {
+          message: "Datos inválidos en el cuerpo de la solicitud",
+          errors: parsed.error.issues,
+        },
+      };
+    }
+
+    const aporteData = parsed.data;
+    const result = await syllabusService.createAporte(aporteData);
+
+    return {
+      status: 201,
+      jsonBody: {
+        message: "Aporte registrado correctamente",
+        result,
+      },
+    };
+  }
+
+  @route("/{syllabusId}/state", "PUT")
+  async updateState(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "ID inválido");
+    }
+
+    const body = await req.json();
+    const result = await syllabusService.updateRevisionStatus(id, body);
+
+    return { status: 200, jsonBody: result };
   }
 }

@@ -5,8 +5,10 @@ import * as schema from "../../../drizzle/schema";
 import {
   silaboCompetenciaCurso,
   silaboCompetenciaComponente,
+  silabo,
+  silaboDocente,
+  docente,
 } from "../../../drizzle/schema";
-import { silabo } from "../../../drizzle/schema";
 import { AppError } from "../../error";
 import { z } from "zod";
 import { SyllabusCreateSchema } from "./types";
@@ -70,14 +72,22 @@ export class SyllabusRepository {
       .from(silabo)
       .where(eq(silabo.id, id));
 
-    // const docentes = await this.db
-    //   .select({ nombreDocente: docente.nombreDocente })
-    //   .from(silaboDocente)
-    //   .leftJoin(docente, eq(silaboDocente.docenteId, docente.id))
-    //   .where(eq(silaboDocente.silaboId, id));
+    const docentes = await db
+      .select({ nombreDocente: docente.nombreDocente })
+      .from(silaboDocente)
+      .innerJoin(docente, eq(silaboDocente.docenteId, docente.id))
+      .where(eq(silaboDocente.silaboId, id));
 
-    return silaboResult[0];
-    //docentes: docentes.map((d) => d.nombreDocente).join(", "),
+    const docentesNombres = docentes.map((d) => d.nombreDocente);
+    const docentesString =
+      docentesNombres.length === 1
+        ? docentesNombres[0]
+        : docentesNombres.join(", ");
+
+    return {
+      ...silaboResult[0],
+      docentes: docentesString,
+    };
   }
 
   async create(syllabusData: z.infer<typeof SyllabusCreateSchema>) {
@@ -420,6 +430,50 @@ export class SyllabusRepository {
       });
 
     return result[0] ?? null;
+  }
+
+  async getStateById(id: number) {
+    const db = getDbOrThrow();
+    const result = await db
+      .select({
+        estadoRevision: silabo.estadoRevision,
+      })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
+    return result[0] || null;
+  }
+
+  async updateReviewStatus(id: number, estadoRevision: string) {
+    const db = getDbOrThrow();
+    await db
+      .update(silabo)
+      .set({
+        estadoRevision,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(silabo.id, id));
+    return { ok: true };
+  }
+
+  async createContribution(data: {
+    syllabusId: number;
+    resultadoProgramaCodigo: string;
+    resultadoProgramaDescripcion?: string;
+    aporteValor: "" | "K" | "R";
+  }) {
+    const db = getDbOrThrow();
+    const result = await db
+      .insert(schema.silaboAporteResultadoPrograma)
+      .values({
+        silaboId: data.syllabusId,
+        resultadoProgramaCodigo: data.resultadoProgramaCodigo,
+        resultadoProgramaDescripcion: data.resultadoProgramaDescripcion,
+        aporteValor: data.aporteValor,
+      })
+      .returning();
+
+    return result[0];
   }
 }
 
