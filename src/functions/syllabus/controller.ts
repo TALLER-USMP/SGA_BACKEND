@@ -224,6 +224,46 @@ export class SyllabusController implements Updatable {
     );
   }
 
+  // PUT /api/syllabus/{id}/evaluacion
+  @route("/{id}/evaluacion", "PUT")
+  async putFormulaEvaluacionRegla(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    try {
+      const idParam = req.params?.id;
+      const id = Number(idParam);
+      const body = (await req.json()) as {
+        nombre_regla?: string;
+        variable_final_codigo?: string;
+        expresion_final?: string;
+        descripcion?: string;
+      };
+
+      if (!id || Object.keys(body).length === 0) {
+        return response.badRequest(
+          "Debe proporcionar un ID válido y al menos un campo para actualizar.",
+        );
+      }
+
+      const updated = await syllabusService.updateFormulaEvaluacionRegla(
+        id,
+        body,
+      );
+
+      if (!updated) {
+        return response.notFound(`No se encontró la fórmula con id ${id}`);
+      }
+
+      return response.ok("Fórmula actualizada correctamente", updated);
+    } catch (error) {
+      console.error("Error en putFormulaEvaluacionRegla:", error);
+      return response.serverError(
+        "Error al actualizar la fórmula de evaluación",
+      );
+    }
+  }
+
   // POST /api/syllabus/estrategias_metodologicas
   @route("/estrategias_metodologicas", "POST")
   async postEstrategiasMetodologicas(

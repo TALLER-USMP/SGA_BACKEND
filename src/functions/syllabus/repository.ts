@@ -1,5 +1,5 @@
 import { getDb } from "../../db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import {
@@ -394,6 +394,35 @@ export class SyllabusRepository {
       .returning({ id: schema.silabo.id });
 
     return result[0] ?? null;
+  }
+
+  async updateFormulaEvaluacionRegla(
+    id: number,
+    data: {
+      nombre_regla?: string;
+      variable_final_codigo?: string;
+      expresion_final?: string;
+      descripcion?: string;
+    },
+  ) {
+    const db = getDb();
+    if (!db) throw new Error("No se pudo conectar a la base de datos");
+
+    const [updated] = await db
+      .update(schema.formulaEvaluacionRegla)
+      .set({
+        ...(data.nombre_regla && { nombreRegla: data.nombre_regla }),
+        ...(data.variable_final_codigo && {
+          variableFinalCodigo: data.variable_final_codigo,
+        }),
+        ...(data.expresion_final && { expresionFinal: data.expresion_final }),
+        ...(data.descripcion && { descripcion: data.descripcion }),
+        updatedAt: sql`now()`, // usa SQL para evitar conflicto de tipos
+      })
+      .where(eq(schema.formulaEvaluacionRegla.id, id))
+      .returning();
+
+    return updated || null;
   }
 
   // Crear estrategias metodológicas
