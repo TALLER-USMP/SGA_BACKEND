@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
 
-export class DocenteRepository {
+export class TeacherRepository {
   /** Obtiene el perfil de un docente por su ID */
-  async findByDocenteId(docenteId: number) {
+  async findById(docenteId: number) {
     const db = (await getDb()) as any;
     if (!db) {
       throw new AppError(
@@ -17,6 +17,7 @@ export class DocenteRepository {
 
     const rows = await db
       .select({
+        id: schema.docente.id,
         nombre: schema.docente.nombreDocente,
         correo: schema.docente.correo,
         gradoCatalogo: schema.gradoAcademicoCatalogo.nombre,
@@ -34,6 +35,7 @@ export class DocenteRepository {
     if (!r) return null;
 
     return {
+      id: r.id,
       nombre: r.nombre ?? null,
       correo: r.correo ?? null,
       grado: r.gradoTexto ?? r.gradoCatalogo ?? null,
@@ -86,7 +88,7 @@ export class DocenteRepository {
       setObj.gradoAcademicoId === undefined &&
       setObj.correo === undefined
     ) {
-      return this.findByDocenteId(docenteId);
+      return this.findById(docenteId);
     }
 
     await db
@@ -122,4 +124,4 @@ export class DocenteRepository {
   }
 }
 
-export const docenteRepository = new DocenteRepository();
+export const teacherRepository = new TeacherRepository();

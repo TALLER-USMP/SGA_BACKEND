@@ -32,7 +32,14 @@ function getDbOrThrow(): NodePgDatabase<typeof schema> {
 }
 
 export class SyllabusRepository {
-  //---------- DATOS GENERALES (silabo) ----------
+  async findById(id: number) {
+    const db = getDb();
+
+    const syllabus = await db!.select().from(silabo).where(eq(silabo.id, id));
+
+    return syllabus[0] || null;
+  }
+
   async findGeneralDataById(id: number) {
     const db = getDbOrThrow();
     if (!db)
