@@ -1,5 +1,5 @@
 import { getDb } from "../../db";
-import { silabo, silaboDocente } from "../../../drizzle/schema";
+import { silabo, silaboDocente, docente } from "../../../drizzle/schema";
 import { ilike, eq, and, asc } from "drizzle-orm";
 import type { SilaboListItem, SilaboFilters } from "./types";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -56,10 +56,12 @@ class AssignmentsRepository {
           estadoRevision: silabo.estadoRevision,
           syllabusId: silabo.id,
           docenteId: silaboDocente.docenteId,
+          nombreDocente: docente.nombreDocente,
           areaCurricular: silabo.areaCurricular,
         })
         .from(silabo)
-        .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId));
+        .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId))
+        .innerJoin(docente, eq(silaboDocente.docenteId, docente.id));
 
       if (conditions.length > 0) {
         query.where(
@@ -77,6 +79,7 @@ class AssignmentsRepository {
         estadoRevision: r.estadoRevision ?? null,
         syllabusId: r.syllabusId,
         docenteId: r.docenteId ?? null,
+        nombreDocente: r.nombreDocente ?? null,
         areaCurricular: r.areaCurricular ?? null,
       }));
     } catch (error) {

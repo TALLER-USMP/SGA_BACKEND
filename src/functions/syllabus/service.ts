@@ -15,6 +15,10 @@ export class SyllabusService {
     return syllabusRepository.listCompetencies(syllabusId);
   }
 
+  async getSumilla(silaboSumillaId: number) {
+    return syllabusRepository.findSumillaById(silaboSumillaId);
+  }
+
   async removeCompetency(syllabusId: string, id: string) {
     const { deleted } = await syllabusRepository.deleteCompetency(
       syllabusId,
@@ -207,7 +211,7 @@ export class SyllabusService {
       message: "🗑️ El item se elimino con éxito",
     };
   }
-  async registerSumilla(idSyllabus: number, payload: unknown) {
+  async updateSumilla(idSyllabus: number, payload: unknown) {
     let sumilla;
     // ✅ Validar con Zod
     const parsed = SumillaSchema.parse(payload);
@@ -222,6 +226,24 @@ export class SyllabusService {
 
     // ✅ Actualizar en la BD
     await syllabusRepository.updateSumilla(idSyllabus, sumilla);
+
+    return { message: "Sumilla registrada correctamente" };
+  }
+  async registerSumilla(idSyllabus: number, payload: unknown) {
+    let sumilla;
+    // ✅ Validar con Zod
+    const parsed = SumillaSchema.parse(payload);
+    sumilla = parsed.sumilla;
+    if (!sumilla) {
+      throw new AppError(
+        "ValidationError",
+        "BAD_REQUEST",
+        "Datos inválidos: " + "Error en la sumilla",
+      );
+    }
+
+    // ✅ Actualizar en la BD
+    await syllabusRepository.saveSumilla(idSyllabus, sumilla);
 
     return { message: "Sumilla registrada correctamente" };
   }

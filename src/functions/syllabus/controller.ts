@@ -48,7 +48,7 @@ export class SyllabusController implements Updatable {
     };
   }
 
-  @route("/{id}/sumilla", "PUT")
+  @route("/{id}/sumilla", "POST")
   async registerSumilla(
     req: HttpRequest,
     context: InvocationContext,
@@ -62,6 +62,40 @@ export class SyllabusController implements Updatable {
       jsonBody: {
         success: true,
         message: result.message,
+      },
+    };
+  }
+
+  @route("/{id}/sumilla", "PUT")
+  async updateSumilla(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const service = syllabusService;
+    const id = Number(req.params.id);
+    const body = await req.json();
+    const result = await service.updateSumilla(id, body);
+    return {
+      status: 200,
+      jsonBody: {
+        success: true,
+        message: result.message,
+      },
+    };
+  }
+
+  @route("/{id}/sumilla", "GET")
+  async getSumilla(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const result = await syllabusService.getSumilla(id);
+    return {
+      status: 200,
+      jsonBody: {
+        success: true,
+        content: result,
       },
     };
   }
