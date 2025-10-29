@@ -4,8 +4,11 @@ import { eq, asc } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
-import type { UnidadListItem } from "./types";
+import type { UnidadListItem, CreateUnidadInput } from "./types";
 
+/* ===========================================================
+   REPOSITORY: PROGRAMACIÓN DE CONTENIDOS
+   =========================================================== */
 class ContentsRepository {
   private db: NodePgDatabase<typeof schema>;
 
@@ -21,9 +24,9 @@ class ContentsRepository {
     this.db = database as unknown as NodePgDatabase<typeof schema>;
   }
 
-  /**
-   * 🔍 Obtiene todas las unidades de un curso usando JOIN entre silabo y silabo_unidad
-   */
+  /* -----------------------------------------------------------
+     OBTENER UNIDADES POR CURSO (GET /:cursoCodigo)
+     ----------------------------------------------------------- */
   async getUnidadesByCursoCodigo(
     cursoCodigo: string,
   ): Promise<UnidadListItem[]> {
@@ -61,6 +64,48 @@ class ContentsRepository {
       );
     }
   }
+
+  /* -----------------------------------------------------------
+     CREAR UNA NUEVA UNIDAD (POST /api/programacion-contenidos)
+     ----------------------------------------------------------- */
+  async createUnidad(data: CreateUnidadInput) {
+    try {
+      const [newUnidad] = await this.db
+        .insert(silaboUnidad)
+        .values({
+          silaboId: data.silaboId,
+          numero: data.numero,
+          titulo: data.titulo,
+          capacidadesText: data.capacidadesText,
+          semanaInicio: data.semanaInicio,
+          semanaFin: data.semanaFin,
+          contenidosConceptuales: data.contenidosConceptuales,
+          contenidosProcedimentales: data.contenidosProcedimentales,
+          actividadesAprendizaje: data.actividadesAprendizaje,
+          horasLectivasTeoria: data.horasLectivasTeoria,
+          horasLectivasPractica: data.horasLectivasPractica,
+          horasNoLectivasTeoria: data.horasNoLectivasTeoria,
+          horasNoLectivasPractica: data.horasNoLectivasPractica,
+        })
+        .returning({
+          id: silaboUnidad.id,
+          numero: silaboUnidad.numero,
+          titulo: silaboUnidad.titulo,
+        });
+
+      return newUnidad;
+    } catch (error) {
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Error al registrar la unidad en la base de datos",
+        error,
+      );
+    }
+  }
 }
 
+/* ===========================================================
+   EXPORTAR INSTANCIA
+   =========================================================== */
 export const contentsRepository = new ContentsRepository();
