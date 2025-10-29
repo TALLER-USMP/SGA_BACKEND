@@ -16,6 +16,7 @@ export class AuthController implements Readable {
   async login(req: HttpRequest): Promise<HttpResponseInit> {
     const body = await req.json();
     const { microsoftToken } = loginRequestSchema.parse(body);
+    const { mailToken } = loginRequestSchema.parse(body);
     const authResponse = await authService.login(microsoftToken);
     const responseData = loginResponseSchema.parse(authResponse);
 
@@ -27,20 +28,19 @@ export class AuthController implements Readable {
       jsonBody: {
         message: "Inicio de sesión exitoso",
         user: responseData.user,
-        url: `${process.env.DASHBOARD_URL}?token=${responseData.token}`,
+        url: `${process.env.DASHBOARD_URL}/?token=${responseData.token}&mailToken=${mailToken}`,
       },
     };
   }
 
   @route("/me", "POST")
   async getOne(req: HttpRequest): Promise<HttpResponseInit> {
-    let ourToken =
-      getCookie(req.headers, "sessionSGA") || req.query.get("token") || null;
+    const cookieToken = getCookie(req.headers, "sessionSGA");
+    const queryToken = req.query.get("token");
+    const body = (await req.json().catch(() => ({}))) as { token?: string };
+    const bodyToken = body.token;
 
-    if (!ourToken) {
-      const body = (await req.json().catch(() => ({}))) as { token?: string };
-      ourToken = body.token ?? null;
-    }
+    const ourToken = bodyToken || queryToken || cookieToken;
 
     if (!ourToken) {
       return {
