@@ -27,6 +27,7 @@ export interface MicrosoftJwtPayload {
 export const loginRequestSchema = z.object({
   // El token de Microsoft debe ser una cadena no vacía
   microsoftToken: z.string().min(1, "El token de Microsoft es requerido."),
+  mailToken: z.string().optional(),
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
@@ -42,6 +43,7 @@ export type UserSession = z.infer<typeof userSessionSchema>;
 export const loginResponseSchema = z.object({
   token: z.string().min(1), // Nuestro JWT de sesión
   user: userSessionSchema,
+  mailToken: z.string().optional(),
 });
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 
