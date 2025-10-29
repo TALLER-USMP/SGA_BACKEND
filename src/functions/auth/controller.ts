@@ -28,20 +28,19 @@ export class AuthController implements Readable {
       jsonBody: {
         message: "Inicio de sesión exitoso",
         user: responseData.user,
-        url: `${process.env.DASHBOARD_URL}?token=${responseData.token}&mailToken=${mailToken}`,
+        url: `${process.env.DASHBOARD_URL}/?token=${responseData.token}&mailToken=${mailToken}`,
       },
     };
   }
 
   @route("/me", "POST")
   async getOne(req: HttpRequest): Promise<HttpResponseInit> {
-    let ourToken =
-      getCookie(req.headers, "sessionSGA") || req.query.get("token") || null;
+    const cookieToken = getCookie(req.headers, "sessionSGA");
+    const queryToken = req.query.get("token");
+    const body = (await req.json().catch(() => ({}))) as { token?: string };
+    const bodyToken = body.token;
 
-    if (!ourToken) {
-      const body = (await req.json().catch(() => ({}))) as { token?: string };
-      ourToken = body.token ?? null;
-    }
+    const ourToken = bodyToken || queryToken || cookieToken;
 
     if (!ourToken) {
       return {
