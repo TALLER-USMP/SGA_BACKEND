@@ -45,6 +45,9 @@ class AssignmentsRepository {
       if (filters?.idDocente !== undefined) {
         conditions.push(eq(silaboDocente.docenteId, filters.idDocente));
       }
+      if (filters?.areaCurricular !== undefined) {
+        conditions.push(eq(silabo.areaCurricular, filters.areaCurricular));
+      }
 
       const query = this.db
         .select({
@@ -53,6 +56,7 @@ class AssignmentsRepository {
           estadoRevision: silabo.estadoRevision,
           syllabusId: silabo.id,
           docenteId: silaboDocente.docenteId,
+          areaCurricular: silabo.areaCurricular,
         })
         .from(silabo)
         .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId));
@@ -73,6 +77,7 @@ class AssignmentsRepository {
         estadoRevision: r.estadoRevision ?? null,
         syllabusId: r.syllabusId,
         docenteId: r.docenteId ?? null,
+        areaCurricular: r.areaCurricular ?? null,
       }));
     } catch (error) {
       if (error instanceof AppError) {

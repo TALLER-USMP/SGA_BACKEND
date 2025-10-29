@@ -6,6 +6,7 @@ export const silaboFiltersSchema = z.object({
   nombre: z.string().optional(),
   idSilabo: z.number().int().positive().optional(),
   idDocente: z.number().int().positive().optional(),
+  areaCurricular: z.string().optional(),
 });
 export type SilaboFilters = z.infer<typeof silaboFiltersSchema>;
 
@@ -39,4 +40,5 @@ export const listQueryParamsSchema = z.object({
       (v) => v === undefined || (Number.isInteger(v) && v > 0),
       "idDocente inválido",
     ),
+  areaCurricular: z.string().optional(),
 });
