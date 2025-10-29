@@ -92,9 +92,10 @@ export class SyllabusController implements Updatable {
     const id = Number(req.params.id);
     const result = await syllabusService.getSumilla(id);
     return {
-      status: 200,
+      status: STATUS_CODES.OK,
       jsonBody: {
         success: true,
+
         content: result,
       },
     };

@@ -203,7 +203,7 @@ export class SyllabusRepository {
         "INTERNAL_SERVER_ERROR",
         "Database not connected",
       );
-    await db
+    return await db
       .select({
         sumilla: silaboSumilla.contenido,
       })

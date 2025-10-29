@@ -16,6 +16,8 @@ export class SyllabusService {
   }
 
   async getSumilla(silaboSumillaId: number) {
+    const result = syllabusRepository.findSumillaById(silaboSumillaId);
+
     return syllabusRepository.findSumillaById(silaboSumillaId);
   }
 
