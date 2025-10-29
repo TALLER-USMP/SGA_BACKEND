@@ -3,7 +3,7 @@ import {
   InvocationContext,
   HttpResponseInit,
 } from "@azure/functions";
-import { Readable, Updatable } from "../../types";
+import { Listable, Readable, Updatable } from "../../types";
 import { controller, route } from "../../lib/decorators";
 import { teacherService } from "./service";
 import { AppError } from "../../error";

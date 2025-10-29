@@ -29,6 +29,7 @@ class AssignmentsService {
     const syllabus = await syllabusRepository.findById(
       assignmentPayload.syllabusId,
     );
+
     if (!syllabus) {
       throw new AppError(
         "Sílabo no encontrado",
@@ -61,7 +62,7 @@ class AssignmentsService {
       academyPeriod: assignmentPayload.academicPeriod,
     };
 
-    await assignmentsRepository.create(createAssigment);
+    return await assignmentsRepository.create(createAssigment);
   }
 }
 

@@ -34,6 +34,12 @@ export function controller<T extends { new (...args: any[]): any }>(
   };
 }
 
+// export function protected(role: ) {
+//   return (target: any, handlerKey: string, descriptor: PropertyDescriptor) => {
+//     // TODO: Implementar autenticación
+//   };
+// }
+
 /**
  * Define an api route and a handler based on the class method
  * @param path Route path for API
@@ -85,14 +91,7 @@ export function route(path: string, method: HttpMethod = "GET") {
         };
       } catch (error: unknown) {
         if (error instanceof AppError) {
-          return {
-            status: error.statusCode,
-            headers: responseHeaders,
-            jsonBody: {
-              message: error.message,
-              name: error.name,
-            },
-          };
+          return error.toHttpResponse();
         }
 
         if (error instanceof ZodError) {
