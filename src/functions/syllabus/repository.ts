@@ -340,6 +340,49 @@ export class SyllabusRepository {
       );
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
   }
+  async getStateById(id: number) {
+    const db = getDbOrThrow();
+    const result = await db
+      .select({
+        estadoRevision: silabo.estadoRevision,
+      })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
+    return result[0] || null;
+  }
+
+  async updateReviewStatus(id: number, estadoRevision: string) {
+    const db = getDbOrThrow();
+    await db
+      .update(silabo)
+      .set({
+        estadoRevision,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(silabo.id, id));
+    return { ok: true };
+  }
+
+  async createContribution(data: {
+    syllabusId: number;
+    resultadoProgramaCodigo: string;
+    resultadoProgramaDescripcion?: string;
+    aporteValor: "" | "K" | "R";
+  }) {
+    const db = getDbOrThrow();
+    const result = await db
+      .insert(schema.silaboAporteResultadoPrograma)
+      .values({
+        silaboId: data.syllabusId,
+        resultadoProgramaCodigo: data.resultadoProgramaCodigo,
+        resultadoProgramaDescripcion: data.resultadoProgramaDescripcion,
+        aporteValor: data.aporteValor,
+      })
+      .returning();
+
+    return result[0];
+  }
 }
 
 export const syllabusRepository = new SyllabusRepository();

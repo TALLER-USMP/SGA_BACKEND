@@ -1,4 +1,4 @@
-import { syllabusRepository } from "./repository";
+import { SyllabusRepository, syllabusRepository } from "./repository";
 import {
   UpsertCompetenciesSchema,
   CreateComponentsSchema, //
@@ -7,7 +7,8 @@ import {
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
 import { AppError } from "../../error";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
+import { ContributionCreateType } from "./types";
 
 export class SyllabusService {
   // ---------- COMPETENCIAS ----------
@@ -248,6 +249,50 @@ export class SyllabusService {
     await syllabusRepository.saveSumilla(idSyllabus, sumilla);
 
     return { message: "Sumilla registrada correctamente" };
+  }
+
+  async updateRevisionStatus(id: number, payload: unknown) {
+    // Validar payload con Zod
+    const schema = z.object({
+      estadoRevision: z.enum(["PENDIENTE", "REVISION"]),
+    });
+
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
+    const { estadoRevision } = parsed.data;
+
+    // 🔍 Verificar si ya tiene ese estado antes de actualizar
+    const current = await syllabusRepository.getStateById(id);
+    if (!current) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+
+    if (current.estadoRevision === estadoRevision) {
+      return {
+        ok: false,
+        message: `El estado ya está asignado como ${estadoRevision}`,
+      };
+    }
+
+    // 🔄 Actualizar el estado
+    await syllabusRepository.updateReviewStatus(id, estadoRevision);
+
+    return {
+      ok: true,
+      message: `Estado actualizado a ${estadoRevision} correctamente`,
+    };
+  }
+
+  // ---------- APORTE ----------
+  async createAporte(data: ContributionCreateType) {
+    const result = await syllabusRepository.createContribution(data);
+    return result;
   }
 }
 
