@@ -52,6 +52,51 @@ class ContentsService {
     const unidad = await contentsRepository.createUnidad(validation.data);
     return unidad;
   }
+
+  /* -----------------------------------------------------------
+      ACTUALIZAR UNA UNIDAD EXISTENTE (PUT /api/programacion-contenidos/:id)
+     ----------------------------------------------------------- */
+  async update(id: number, data: Partial<CreateUnidadInput>) {
+    // Validar que el ID sea válido
+    if (!id || isNaN(id)) {
+      throw new AppError("ValidationError", "BAD_REQUEST", "ID inválido");
+    }
+
+    // Validar que haya campos para actualizar
+    if (!data || Object.keys(data).length === 0) {
+      throw new AppError(
+        "ValidationError",
+        "BAD_REQUEST",
+        "No se enviaron campos para actualizar",
+      );
+    }
+
+    // Validar datos parcialmente con zod
+    const validation = createUnidadSchema.partial().safeParse(data);
+    if (!validation.success) {
+      throw new AppError(
+        "ValidationError",
+        "BAD_REQUEST",
+        "Datos inválidos para actualizar la unidad",
+        validation.error.issues,
+      );
+    }
+
+    // Ejecutar actualización
+    const updatedUnidad = await contentsRepository.updateUnidad(
+      id,
+      validation.data,
+    );
+
+    if (!updatedUnidad) {
+      throw new AppError("NotFoundError", "NOT_FOUND", "Unidad no encontrada");
+    }
+
+    return {
+      message: "Unidad actualizada correctamente.",
+      data: updatedUnidad,
+    };
+  }
 }
 
 /* ===========================================================

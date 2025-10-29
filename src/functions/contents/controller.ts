@@ -53,4 +53,27 @@ export class ContentsController implements Readable {
       },
     };
   }
+
+  // =====================================================
+  // RUTA PUT: Actualizar una unidad existente
+  // =====================================================
+  @route("/{id:int}", "PUT")
+  async update(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const body = (await req.json()) as Partial<CreateUnidadInput>;
+
+    const data = await contentsService.update(id, body);
+
+    return {
+      status: STATUS_CODES.OK,
+      headers: { "Content-Type": "application/json" },
+      jsonBody: {
+        message: "Unidad actualizada correctamente.",
+        data,
+      },
+    };
+  }
 }

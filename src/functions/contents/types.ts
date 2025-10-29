@@ -57,10 +57,36 @@ export const createUnidadSchema = z.object({
 export type CreateUnidadInput = z.infer<typeof createUnidadSchema>;
 
 /* ===========================================================
+   TAREA 52 - (PUT /api/programacion-contenidos/:id)
+   =========================================================== */
+export const updateUnidadParamsSchema = z.object({
+  id: z.string().regex(/^\d+$/, { message: "El ID debe ser un número válido" }),
+});
+
+export const updateUnidadSchema = z.object({
+  numero: z.number().optional(),
+  titulo: z.string().optional(),
+  capacidadesText: z.string().nullable().optional(),
+  semanaInicio: z.number().nullable().optional(),
+  semanaFin: z.number().nullable().optional(),
+  contenidosConceptuales: z.string().nullable().optional(),
+  contenidosProcedimentales: z.string().nullable().optional(),
+  actividadesAprendizaje: z.string().nullable().optional(),
+  horasLectivasTeoria: z.number().nullable().optional(),
+  horasLectivasPractica: z.number().nullable().optional(),
+  horasNoLectivasTeoria: z.number().nullable().optional(),
+  horasNoLectivasPractica: z.number().nullable().optional(),
+});
+
+export type UpdateUnidadInput = z.infer<typeof updateUnidadSchema>;
+export type UpdateUnidadParams = z.infer<typeof updateUnidadParamsSchema>;
+
+/* ===========================================================
     AGRUPA TODOS LOS ESQUEMAS
    =========================================================== */
 export type ProgramacionContenidosSchemas = {
   params: Params;
   listItem: UnidadListItem;
   createUnidad: CreateUnidadInput;
+  updateUnidad: UpdateUnidadInput;
 };

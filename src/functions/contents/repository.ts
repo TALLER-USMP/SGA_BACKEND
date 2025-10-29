@@ -103,6 +103,48 @@ class ContentsRepository {
       );
     }
   }
+
+  /* -----------------------------------------------------------
+     ACTUALIZAR UNA UNIDAD EXISTENTE (PUT /api/programacion-contenidos/:id)
+     ----------------------------------------------------------- */
+  async updateUnidad(id: number, data: Partial<CreateUnidadInput>) {
+    try {
+      // Verificar si existe la unidad antes de actualizar
+      const [existingUnidad] = await this.db
+        .select()
+        .from(silaboUnidad)
+        .where(eq(silaboUnidad.id, id));
+
+      if (!existingUnidad) {
+        throw new AppError(
+          "NotFoundError",
+          "NOT_FOUND",
+          `No se encontró la unidad con id: ${id}`,
+        );
+      }
+
+      // Ejecutar actualización
+      const [updatedUnidad] = await this.db
+        .update(silaboUnidad)
+        .set({ ...data })
+        .where(eq(silaboUnidad.id, id))
+        .returning({
+          id: silaboUnidad.id,
+          numero: silaboUnidad.numero,
+          titulo: silaboUnidad.titulo,
+        });
+
+      return updatedUnidad;
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Error al actualizar la unidad en la base de datos",
+        error,
+      );
+    }
+  }
 }
 
 /* ===========================================================
