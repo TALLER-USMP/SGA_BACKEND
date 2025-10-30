@@ -27,12 +27,14 @@ export class AssignmentsController implements Listable {
     const nombre = req.query.get("nombre")?.trim() || undefined;
     const idSilaboParam = req.query.get("idSilabo")?.trim() || undefined;
     const idDocenteParam = req.query.get("idDocente")?.trim() || undefined;
+    const areaCurricular = req.query.get("areaCurricular")?.trim() || undefined;
 
     const validation = listQueryParamsSchema.safeParse({
       codigo,
       nombre,
       idSilabo: idSilaboParam,
       idDocente: idDocenteParam,
+      areaCurricular: areaCurricular,
     });
 
     if (!validation.success) {
@@ -52,6 +54,7 @@ export class AssignmentsController implements Listable {
       nombre: filters.nombre,
       idSilabo: filters.idSilabo,
       idDocente: filters.idDocente,
+      areaCurricular: filters.areaCurricular,
     });
 
     return {

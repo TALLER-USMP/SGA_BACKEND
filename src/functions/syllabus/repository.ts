@@ -8,6 +8,7 @@ import {
   silabo,
   silaboDocente,
   docente,
+  silaboSumilla,
 } from "../../../drizzle/schema";
 import { AppError } from "../../error";
 import { z } from "zod";
@@ -160,7 +161,7 @@ export class SyllabusRepository {
     return result[0].id;
   }
 
-  async updateSumilla(id: number, sumilla: string) {
+  async updateSumilla(silaboId: number, sumilla: string) {
     const db = getDbOrThrow();
     if (!db)
       throw new AppError(
@@ -169,12 +170,46 @@ export class SyllabusRepository {
         "Database not connected",
       );
     await db
-      .update(silabo)
+      .update(silaboSumilla)
       .set({
-        sumilla,
+        contenido: sumilla,
         updatedAt: new Date().toISOString(),
-      } as any)
-      .where(eq(silabo.id, id));
+      })
+      .where(eq(silaboSumilla.silaboId, silaboId));
+  }
+
+  async saveSumilla(silaboId: number, sumilla: string) {
+    const db = getDbOrThrow();
+    if (!db)
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Database not connected",
+      );
+    await db.insert(silaboSumilla).values({
+      silaboId: silaboId,
+      contenido: sumilla,
+      es_actual: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
+  }
+
+  async findSumillaBySilaboId(silaboId: number) {
+    const db = getDbOrThrow();
+    if (!db)
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Database not connected",
+      );
+    return await db
+      .select({
+        sumilla: silaboSumilla.contenido,
+      })
+      .from(silaboSumilla)
+      .where(eq(silaboSumilla.silaboId, silaboId))
+      .limit(1);
   }
 
   // ---------- COMPETENCIAS (silabo_competencia_curso) ----------
