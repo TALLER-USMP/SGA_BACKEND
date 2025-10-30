@@ -1,5 +1,5 @@
 import { getDb } from "../../db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import {
@@ -57,7 +57,6 @@ export class SyllabusRepository {
         horasTeoria: silabo.horasTeoria,
         horasPractica: silabo.horasPractica,
         horasLaboratorio: silabo.horasLaboratorio,
-        horasTotales: silabo.horasTotales,
         horasTeoriaLectivaPresencial: silabo.horasTeoriaLectivaPresencial,
         horasTeoriaLectivaDistancia: silabo.horasTeoriaLectivaDistancia,
         horasTeoriaNoLectivaPresencial: silabo.horasTeoriaNoLectivaPresencial,
@@ -69,7 +68,6 @@ export class SyllabusRepository {
         horasPracticaNoLectivaDistancia: silabo.horasPracticaNoLectivaDistancia,
         creditosTeoria: silabo.creditosTeoria,
         creditosPractica: silabo.creditosPractica,
-        creditosTotales: silabo.creditosTotales,
       })
       .from(silabo)
       .where(eq(silabo.id, id));
@@ -120,7 +118,6 @@ export class SyllabusRepository {
         horasTeoria: syllabusData.horasTeoria ?? null,
         horasPractica: syllabusData.horasPractica ?? null,
         horasLaboratorio: syllabusData.horasLaboratorio ?? null,
-        horasTotales: syllabusData.horasTotales ?? null,
 
         horasTeoriaLectivaPresencial:
           syllabusData.horasTeoriaLectivaPresencial ?? null,
@@ -143,7 +140,6 @@ export class SyllabusRepository {
         // 🧮 Créditos
         creditosTeoria: syllabusData.creditosTeoria ?? null,
         creditosPractica: syllabusData.creditosPractica ?? null,
-        creditosTotales: syllabusData.creditosTotales ?? null,
 
         // 👤 Relaciones (null por ahora, hasta integrar autenticación)
         creadoPorDocenteId: null,
@@ -171,7 +167,7 @@ export class SyllabusRepository {
     await db
       .update(silabo)
       .set({
-        sumilla,
+        //sumilla,
         updatedAt: new Date().toISOString(),
       } as any)
       .where(eq(silabo.id, id));
@@ -306,6 +302,165 @@ export class SyllabusRepository {
       );
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
   }
+
+  // Obtener estrategias metodológicas por ID
+  async getEstrategiasMetodologicas(id: number) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .select({
+        id: schema.silabo.id,
+        estrategiasMetodologicas: schema.silabo.estrategiasMetodologicas,
+      })
+      .from(schema.silabo)
+      .where(eq(schema.silabo.id, id));
+
+    return result[0] ?? null;
+  }
+
+  // Obtener recursos didácticos por ID
+  async getRecursosDidacticosNotas(id: number) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .select({
+        id: schema.silabo.id,
+        recursosDidacticosNotas: schema.silabo.recursosDidacticosNotas,
+      })
+      .from(schema.silabo)
+      .where(eq(schema.silabo.id, id));
+
+    return result[0] ?? null;
+  }
+
+  // Obtener evaluación por ID
+  async getEvaluacion(id: number) {
+    const db = getDb();
+    if (!db) return null;
+
+    // 1️⃣ Obtener la regla principal
+    const regla = await db
+      .select({
+        id: schema.formulaEvaluacionRegla.id,
+        silaboId: schema.formulaEvaluacionRegla.silaboId,
+        variableFinalCodigo: schema.formulaEvaluacionRegla.variableFinalCodigo,
+        expresionFinal: schema.formulaEvaluacionRegla.expresionFinal,
+      })
+      .from(schema.formulaEvaluacionRegla)
+      .where(eq(schema.formulaEvaluacionRegla.id, id));
+
+    if (!regla[0]) return null;
+    const reglaData = regla[0];
+
+    // 2️⃣ Obtener las subformulas asociadas a esa regla
+    const subformula = await db
+      .select({
+        variableCodigo: schema.formulaEvaluacionSubformula.variableCodigo,
+        expresion: schema.formulaEvaluacionSubformula.expresion,
+      })
+      .from(schema.formulaEvaluacionSubformula)
+      .where(
+        eq(schema.formulaEvaluacionSubformula.formulaEvaluacionReglaId, id),
+      );
+
+    return { regla: reglaData, subformula };
+  }
+
+  // Actualizar estrategias metodológicas por ID
+  async putEstrategiasMetodologicas(id: number, estrategias: string) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .update(schema.silabo)
+      .set({ estrategiasMetodologicas: estrategias })
+      .where(eq(schema.silabo.id, id))
+      .returning({ id: schema.silabo.id });
+
+    return result[0] ?? null;
+  }
+
+  // Actualizar recursos didácticos por ID
+  async putRecursosDidacticosNotas(id: number, recursos: string) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .update(schema.silabo)
+      .set({ recursosDidacticosNotas: recursos })
+      .where(eq(schema.silabo.id, id))
+      .returning({ id: schema.silabo.id });
+
+    return result[0] ?? null;
+  }
+
+  async updateFormulaEvaluacionRegla(
+    id: number,
+    data: {
+      nombre_regla?: string;
+      variable_final_codigo?: string;
+      expresion_final?: string;
+      descripcion?: string;
+    },
+  ) {
+    const db = getDb();
+    if (!db) throw new Error("No se pudo conectar a la base de datos");
+
+    const [updated] = await db
+      .update(schema.formulaEvaluacionRegla)
+      .set({
+        ...(data.nombre_regla && { nombreRegla: data.nombre_regla }),
+        ...(data.variable_final_codigo && {
+          variableFinalCodigo: data.variable_final_codigo,
+        }),
+        ...(data.expresion_final && { expresionFinal: data.expresion_final }),
+        ...(data.descripcion && { descripcion: data.descripcion }),
+        updatedAt: sql`now()`, // usa SQL para evitar conflicto de tipos
+      })
+      .where(eq(schema.formulaEvaluacionRegla.id, id))
+      .returning();
+
+    return updated || null;
+  }
+
+  // Crear estrategias metodológicas
+  async postEstrategiasMetodologicas(estrategias: string) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .insert(schema.silabo)
+      .values({
+        estrategiasMetodologicas: estrategias,
+      })
+      .returning({
+        id: schema.silabo.id,
+        estrategiasMetodologicas: schema.silabo.estrategiasMetodologicas,
+      });
+
+    return result[0] ?? null;
+  }
+
+  // Crear recursos didácticos
+  async postRecursosDidacticosNotas(recursos: string) {
+    const db = getDb();
+    if (!db) return null;
+
+    const result = await db
+      .insert(schema.silabo)
+      .values({
+        recursosDidacticosNotas: recursos,
+      })
+      .returning({
+        id: schema.silabo.id,
+        recursosDidacticosNotas: schema.silabo.recursosDidacticosNotas,
+      });
+
+    return result[0] ?? null;
+  }
+
   async getStateById(id: number) {
     const db = getDbOrThrow();
     const result = await db

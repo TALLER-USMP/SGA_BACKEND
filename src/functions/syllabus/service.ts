@@ -227,6 +227,84 @@ export class SyllabusService {
     return { message: "Sumilla registrada correctamente" };
   }
 
+  async getEstrategiasMetodologicas(id: number) {
+    return await syllabusRepository.getEstrategiasMetodologicas(id);
+  }
+
+  async getRecursosDidacticosNotas(id: number) {
+    return await syllabusRepository.getRecursosDidacticosNotas(id);
+  }
+
+  async getEvaluacion(id: number) {
+    const result = await syllabusRepository.getEvaluacion(id);
+    if (!result) return null;
+
+    const { regla, subformula } = result;
+
+    // 🧩 Concatenar la fórmula principal + variables
+    const formulas: string[] = [];
+
+    // Fórmula principal
+    formulas.push(`${regla.variableFinalCodigo} = ${regla.expresionFinal}`);
+
+    // Fórmulas secundarias
+    for (const v of subformula) {
+      formulas.push(`${v.variableCodigo} = ${v.expresion}`);
+    }
+
+    // Unir con salto de línea
+    const formulaConcatenada = formulas.join("\n");
+
+    return {
+      id: regla.id,
+      formula: formulaConcatenada,
+    };
+  }
+
+  async putEstrategiasMetodologicas(id: number, estrategias: string) {
+    return await syllabusRepository.putEstrategiasMetodologicas(
+      id,
+      estrategias,
+    );
+  }
+
+  async putRecursosDidacticosNotas(id: number, recursos: string) {
+    return await syllabusRepository.putRecursosDidacticosNotas(id, recursos);
+  }
+
+  async updateFormulaEvaluacionRegla(
+    id: number,
+    data: {
+      nombre_regla?: string;
+      variable_final_codigo?: string;
+      expresion_final?: string;
+      descripcion?: string;
+    },
+  ) {
+    const updated = await syllabusRepository.updateFormulaEvaluacionRegla(
+      id,
+      data,
+    );
+    return updated;
+  }
+
+  async postEstrategiasMetodologicas(body: {
+    estrategias_metodologicas: string;
+  }) {
+    const { estrategias_metodologicas } = body;
+    return syllabusRepository.postEstrategiasMetodologicas(
+      estrategias_metodologicas,
+    );
+  }
+
+  async postRecursosDidacticosNotas(body: {
+    recursos_didacticos_notas: string;
+  }) {
+    const { recursos_didacticos_notas } = body;
+    return syllabusRepository.postRecursosDidacticosNotas(
+      recursos_didacticos_notas,
+    );
+  }
   async updateRevisionStatus(id: number, payload: unknown) {
     // Validar payload con Zod
     const schema = z.object({
