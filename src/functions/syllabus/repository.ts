@@ -172,9 +172,9 @@ export class SyllabusRepository {
     await db
       .update(silaboSumilla)
       .set({
-        content: sumilla,
+        contenido: sumilla,
         updatedAt: new Date().toISOString(),
-      } as any)
+      })
       .where(eq(silaboSumilla.silaboId, silaboId));
   }
 
@@ -195,7 +195,7 @@ export class SyllabusRepository {
     } as any);
   }
 
-  async findSumillaById(id: number) {
+  async findSumillaBySilaboId(silaboId: number) {
     const db = getDbOrThrow();
     if (!db)
       throw new AppError(
@@ -208,7 +208,8 @@ export class SyllabusRepository {
         sumilla: silaboSumilla.contenido,
       })
       .from(silaboSumilla)
-      .where(eq(silaboSumilla.id, id));
+      .where(eq(silaboSumilla.silaboId, silaboId))
+      .limit(1);
   }
 
   // ---------- COMPETENCIAS (silabo_competencia_curso) ----------

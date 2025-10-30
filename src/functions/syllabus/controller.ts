@@ -85,13 +85,13 @@ export class SyllabusController implements Updatable {
     };
   }
 
-  @route("/{id}/sumilla", "GET")
-  async getSumilla(
+  @route("/{silaboId}/sumilla", "GET")
+  async getSumillaBySilaboId(
     req: HttpRequest,
     context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const id = Number(req.params.id);
-    const result = await syllabusService.getSumilla(id);
+    const id = Number(req.params.silaboId);
+    const result = await syllabusService.getSumillaBySilaboId(id);
     return {
       status: STATUS_CODES.OK,
       jsonBody: {

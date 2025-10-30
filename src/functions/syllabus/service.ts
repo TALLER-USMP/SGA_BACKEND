@@ -16,10 +16,10 @@ export class SyllabusService {
     return syllabusRepository.listCompetencies(syllabusId);
   }
 
-  async getSumilla(silaboSumillaId: number) {
-    const result = syllabusRepository.findSumillaById(silaboSumillaId);
+  async getSumillaBySilaboId(silaboId: number) {
+    const result = await syllabusRepository.findSumillaBySilaboId(silaboId);
 
-    return syllabusRepository.findSumillaById(silaboSumillaId);
+    return result;
   }
 
   async removeCompetency(syllabusId: string, id: string) {
@@ -230,13 +230,12 @@ export class SyllabusService {
     // ✅ Actualizar en la BD
     await syllabusRepository.updateSumilla(idSyllabus, sumilla);
 
-    return { message: "Sumilla registrada correctamente" };
+    return { message: "Sumilla actualizada correctamente" };
   }
   async registerSumilla(idSyllabus: number, payload: unknown) {
-    let sumilla;
     // ✅ Validar con Zod
     const parsed = SumillaSchema.parse(payload);
-    sumilla = parsed.sumilla;
+    const sumilla = parsed.sumilla;
     if (!sumilla) {
       throw new AppError(
         "ValidationError",
