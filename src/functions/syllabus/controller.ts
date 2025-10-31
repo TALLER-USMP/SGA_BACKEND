@@ -49,6 +49,7 @@ export class SyllabusController implements Updatable {
     };
   }
 
+  //ruta sumilla
   @route("/{id}/sumilla", "PUT")
   async registerSumilla(
     req: HttpRequest,
