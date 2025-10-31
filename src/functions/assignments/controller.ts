@@ -17,6 +17,7 @@ export class AssignmentsController implements Listable {
    * http://localhost:7071/api/assignments/?codigo=TEST101
    * http://localhost:7071/api/assignments/?nombre=Taller de Proyectos
    * http://localhost:7071/api/assignments/?idDocente=3
+   * http://localhost:7071/api/assignments/?idDocente=3&estadoRevision=Asignado
    */
   @route("/", "GET")
   async list(
@@ -27,6 +28,8 @@ export class AssignmentsController implements Listable {
     const nombre = req.query.get("nombre")?.trim() || undefined;
     const idSilaboParam = req.query.get("idSilabo")?.trim() || undefined;
     const idDocenteParam = req.query.get("idDocente")?.trim() || undefined;
+    const estadoRevisionParam =
+      req.query.get("estadoRevision")?.trim() || undefined;
 
     const validation = listQueryParamsSchema.safeParse({
       codigo,
@@ -52,6 +55,39 @@ export class AssignmentsController implements Listable {
       nombre: filters.nombre,
       idSilabo: filters.idSilabo,
       idDocente: filters.idDocente,
+    });
+
+    return {
+      status: STATUS_CODES.OK,
+      headers: { "Content-Type": "application/json" },
+      jsonBody: {
+        message: "Listado de sílabos obtenido correctamente.",
+        data: items,
+      },
+    };
+  }
+
+  @route("{id}", "GET")
+  async listByStatus(
+    req: HttpRequest,
+    context: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const idDocenteParam = req.query.get("idDocente")?.trim() || undefined;
+    const estadoRevisionParam =
+      req.query.get("estadoRevision")?.trim() || undefined;
+
+    if (!idDocenteParam || !estadoRevisionParam) {
+      throw new AppError(
+        "ValidationError",
+        "BAD_REQUEST",
+        "Parámetros de consulta inválidos",
+      );
+    }
+
+    // Llamar al servicio
+    const items = await assignmentsService.listByStatus({
+      idDocente: idDocenteParam,
+      estadoRevision: estadoRevisionParam,
     });
 
     return {

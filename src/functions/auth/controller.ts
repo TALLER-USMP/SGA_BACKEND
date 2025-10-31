@@ -27,7 +27,7 @@ export class AuthController implements Readable {
       jsonBody: {
         message: "Inicio de sesión exitoso",
         user: responseData.user,
-        url: `${process.env.DASHBOARD_URL}?token=${responseData.token}`,
+        url: responseData.token,
       },
     };
   }
