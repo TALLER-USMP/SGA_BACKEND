@@ -1,22 +1,35 @@
 import {
   HttpRequest,
-  InvocationContext,
   HttpResponseInit,
+  InvocationContext,
 } from "@azure/functions";
-import { Listable, Readable, Updatable } from "../../types";
-import { controller, route } from "../../lib/decorators";
-import { teacherService } from "./service";
 import { AppError } from "../../error";
+import { controller, route, requireRole } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
+import { Listable, Readable, Updatable } from "../../types";
+import { teacherService } from "./service";
 
 @controller("docente")
-export class TeacherController implements Readable, Updatable {
+export class TeacherController implements Listable, Readable, Updatable {
+  /** GET /api/docente - Lista todos los profesores (requiere rol de administrador o coordinador) */
+  @route("/", "GET")
+  @requireRole("ADMIN", "COORDINADOR")
+  async list(req: HttpRequest): Promise<HttpResponseInit> {
+    const data = await teacherService.listTeachers();
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Lista de profesores obtenida correctamente",
+        data: data.items,
+        total: data.total,
+      },
+    };
+  }
+
   /** GET /api/docente/{docenteId} */
   @route("/{docenteId}", "GET")
-  async getOne(
-    req: HttpRequest,
-    _ctx: InvocationContext,
-  ): Promise<HttpResponseInit> {
+  async getOne(req: HttpRequest): Promise<HttpResponseInit> {
     const { docenteId } = (req.params ?? {}) as { docenteId?: string };
     const id = Number(docenteId);
 
@@ -34,10 +47,7 @@ export class TeacherController implements Readable, Updatable {
 
   /** PUT /api/docente/{docenteId} */
   @route("/{docenteId}", "PUT")
-  async update(
-    req: HttpRequest,
-    _ctx: InvocationContext,
-  ): Promise<HttpResponseInit> {
+  async update(req: HttpRequest): Promise<HttpResponseInit> {
     const { docenteId } = (req.params ?? {}) as { docenteId?: string };
     const id = Number(docenteId);
 

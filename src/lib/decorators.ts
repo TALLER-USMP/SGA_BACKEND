@@ -8,7 +8,10 @@ import { MetadataStore } from "./metadatastore";
 import { AppError } from "../error";
 import { STATUS_CODES } from "../status-codes";
 import { ZodError } from "zod";
-import { merge } from "zod/v4/core/util.cjs";
+import * as jwt from "jsonwebtoken";
+import { UserSession } from "../functions/auth/types";
+import { getCookie } from "../functions/auth/utils";
+import { RoleName, roleNamesToIds } from "../constants/roles";
 
 export type RouteDefinition = {
   path: string;
@@ -34,11 +37,75 @@ export function controller<T extends { new (...args: any[]): any }>(
   };
 }
 
-// export function protected(role: ) {
-//   return (target: any, handlerKey: string, descriptor: PropertyDescriptor) => {
-//     // TODO: Implementar autenticación
-//   };
-// }
+/**
+ * Decorator to protect routes by role
+ * @param allowedRoles Array of role names that are allowed to access this route
+ * @returns Method decorator
+ * @example
+ * ```typescript
+ * @requireRole('ADMIN', 'COORDINADOR')
+ * async list(req: HttpRequest): Promise<HttpResponseInit> { ... }
+ * ```
+ */
+export function requireRole(...allowedRoles: RoleName[]) {
+  return (target: any, handlerKey: string, descriptor: PropertyDescriptor) => {
+    const originalMethod = descriptor.value;
+
+    // Convert role names to IDs at decoration time
+    const allowedRoleIds = roleNamesToIds(allowedRoles);
+
+    descriptor.value = async function (
+      req: HttpRequest,
+      context: InvocationContext,
+    ): Promise<HttpResponseInit> {
+      // Extract token from cookie, query param, or body
+      let token =
+        getCookie(req.headers, "sessionSGA") || req.query.get("token") || null;
+
+      if (!token) {
+        const body = (await req.json().catch(() => ({}))) as { token?: string };
+        token = body.token ?? null;
+      }
+
+      if (!token) {
+        throw new AppError(
+          "Unauthorized",
+          "UNAUTHORIZED",
+          "Token de autenticación requerido",
+        );
+      }
+
+      // Verify and decode JWT
+      let decoded: UserSession;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET!) as UserSession;
+      } catch (error) {
+        throw new AppError(
+          "Unauthorized",
+          "UNAUTHORIZED",
+          "Token inválido o expirado",
+        );
+      }
+
+      // Check if user role is allowed
+      if (!allowedRoleIds.includes(decoded.role)) {
+        throw new AppError(
+          "Forbidden",
+          "FORBIDDEN",
+          `No tienes permisos para acceder a este recurso. Roles permitidos: ${allowedRoles.join(", ")}`,
+        );
+      }
+
+      // Attach user session to request for use in the handler
+      (req as any).user = decoded;
+
+      // Call original method
+      return originalMethod.call(this, req, context);
+    };
+
+    return descriptor;
+  };
+}
 
 /**
  * Define an api route and a handler based on the class method

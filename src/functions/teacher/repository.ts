@@ -1,9 +1,55 @@
 import { getDb } from "../../db";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
 
 export class TeacherRepository {
+  /** Lista todos los docentes activos con sus categorías */
+  async findAll() {
+    const db = (await getDb()) as any;
+    if (!db) {
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Database not connected",
+      );
+    }
+
+    const rows = await db
+      .select({
+        id: schema.docente.id,
+        nombre: schema.docente.nombreDocente,
+        correo: schema.docente.correo,
+        gradoCatalogo: schema.gradoAcademicoCatalogo.nombre,
+        gradoTexto: schema.docente.gradoAcademico,
+        categoria: schema.categoriaUsuario.nombreCategoria,
+        categoriaId: schema.categoriaUsuario.id,
+        activo: schema.docente.activo,
+        ultimoAcceso: schema.docente.ultimoAccesoEn,
+      })
+      .from(schema.docente)
+      .leftJoin(
+        schema.gradoAcademicoCatalogo,
+        eq(schema.docente.gradoAcademicoId, schema.gradoAcademicoCatalogo.id),
+      )
+      .leftJoin(
+        schema.categoriaUsuario,
+        eq(schema.docente.categoriaUsuarioId, schema.categoriaUsuario.id),
+      )
+      .where(eq(schema.docente.activo, true));
+
+    return rows.map((r: any) => ({
+      id: r.id,
+      nombre: r.nombre ?? null,
+      correo: r.correo,
+      grado: r.gradoTexto ?? r.gradoCatalogo ?? null,
+      categoria: r.categoria ?? null,
+      categoriaId: r.categoriaId,
+      activo: r.activo ?? true,
+      ultimoAcceso: r.ultimoAcceso ?? null,
+    }));
+  }
+
   /** Obtiene el perfil de un docente por su ID */
   async findById(docenteId: number) {
     const db = (await getDb()) as any;

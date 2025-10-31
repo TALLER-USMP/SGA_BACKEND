@@ -3,10 +3,26 @@ import { teacherRepository } from "./repository";
 import {
   TeacherProfileOutSchema,
   TeacherProfileUpdateSchema,
+  TeacherListItemSchema,
   type TeacherProfileOut,
+  type TeacherListResponse,
 } from "./types";
 
 class TeacherService {
+  async listTeachers(): Promise<TeacherListResponse> {
+    const teachers = await teacherRepository.findAll();
+
+    // Validate each teacher item
+    const validatedItems = teachers.map((teacher: any) =>
+      TeacherListItemSchema.parse(teacher),
+    );
+
+    return {
+      items: validatedItems,
+      total: validatedItems.length,
+    };
+  }
+
   async getProfile(docenteId: number): Promise<TeacherProfileOut> {
     const profile = await teacherRepository.findById(docenteId);
     if (!profile) {

@@ -16,3 +16,22 @@ export const TeacherProfileUpdateSchema = z.object({
   correo: z.string().email().optional(), // docente.correo
 });
 export type TeacherProfileUpdate = z.infer<typeof TeacherProfileUpdateSchema>;
+
+// Schema para el listado de profesores
+export const TeacherListItemSchema = z.object({
+  id: z.number().int().positive(),
+  nombre: z.string().nullable(),
+  correo: z.string().email(),
+  grado: z.string().nullable(),
+  categoria: z.string().nullable(),
+  categoriaId: z.number().int().positive(),
+  activo: z.boolean(),
+  ultimoAcceso: z.string().nullable(),
+});
+export type TeacherListItem = z.infer<typeof TeacherListItemSchema>;
+
+export const TeacherListResponseSchema = z.object({
+  items: z.array(TeacherListItemSchema),
+  total: z.number().int().nonnegative(),
+});
+export type TeacherListResponse = z.infer<typeof TeacherListResponseSchema>;
