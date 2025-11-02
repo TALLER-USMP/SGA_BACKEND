@@ -293,6 +293,22 @@ export class SyllabusService {
     const result = await syllabusRepository.createContribution(data);
     return result;
   }
+
+  // ---------- SÍLABO COMPLETO ----------
+  async getCompleteSyllabus(id: number) {
+    const result = await syllabusRepository.getCompleteSyllabus(id);
+
+    // Verificar que el sílabo exista
+    if (!result) {
+      throw new AppError(
+        "NotFound",
+        "NOT_FOUND",
+        `Sílabo con ID ${id} no encontrado`,
+      );
+    }
+
+    return result;
+  }
 }
 
 export const syllabusService = new SyllabusService();

@@ -45,34 +45,42 @@ class AuthService {
   }
 
   public async login(msToken: string): Promise<LoginResponse> {
-  const msPayload = await this.verifyMicrosoftToken(msToken);
+    const msPayload = await this.verifyMicrosoftToken(msToken);
 
-  const userEmail = msPayload.preferred_username;
-  let userRecord = await authRepository.findUserByEmail(userEmail);
-  console.log("📚 [AuthService] User record found?", !!userRecord);
+    const userEmail = msPayload.preferred_username;
+    let userRecord = await authRepository.findUserByEmail(userEmail);
+    console.log("📚 [AuthService] User record found?", !!userRecord);
 
-  if (userRecord) {
-    await authRepository.updateLastAccess(userRecord.user.id, msPayload);
-  } else {
-    userRecord = await authRepository.createUser(msPayload);
+    if (userRecord) {
+      await authRepository.updateLastAccess(userRecord.user.id, msPayload);
+    } else {
+      userRecord = await authRepository.createUser(msPayload);
+    }
+
+    const ourToken = this.generateOurJwt(
+      userRecord.user,
+      userRecord.category.id,
+    );
+
+    return {
+      token: ourToken,
+      user: {
+        id: userRecord.user.id,
+        email: userRecord.user.correo,
+        role: userRecord.category.id,
+        name: userRecord.user.nombreDocente,
+      },
+    };
   }
 
-  const ourToken = this.generateOurJwt(
-    userRecord.user,
-    userRecord.category.id,
-  );
-
-  return {
-    token: ourToken,
-    user: {
-      id: userRecord.user.id,
-      email: userRecord.user.correo,
-      role: userRecord.category.id,
-      name: userRecord.user.nombreDocente,
-    },
-  };
-}
-
+  public isTokenValid(token: string): boolean {
+    try {
+      jwt.verify(token, process.env.JWT_SECRET!);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
 
   public async sessionMe(ourToken: string): Promise<SessionResponse> {
     const decoded = jwt.verify(

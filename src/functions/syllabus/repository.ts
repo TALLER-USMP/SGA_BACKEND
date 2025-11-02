@@ -75,6 +75,10 @@ export class SyllabusRepository {
       .from(silabo)
       .where(eq(silabo.id, id));
 
+    if (!silaboResult || silaboResult.length === 0) {
+      return null;
+    }
+
     const docentes = await db
       .select({ nombreDocente: docente.nombreDocente })
       .from(silaboDocente)
@@ -383,6 +387,184 @@ export class SyllabusRepository {
       .returning();
 
     return result[0];
+  }
+
+  // ---------- OBTENER SÍLABO COMPLETO ----------
+  async getCompleteSyllabus(id: number) {
+    const db = getDbOrThrow();
+
+    // 1. Datos Generales - Verificar que el sílabo existe
+    const datosGenerales = await this.findGeneralDataById(id);
+
+    // Si no existe el sílabo, retornar null para que el service maneje el error
+    if (!datosGenerales) {
+      return null;
+    }
+
+    // 2. Sumilla
+    const sumillaResult = await db
+      .select({ contenido: silaboSumilla.contenido })
+      .from(silaboSumilla)
+      .where(
+        and(eq(silaboSumilla.silaboId, id), eq(silaboSumilla.esActual, true)),
+      )
+      .limit(1);
+
+    // 3. Competencias del Curso
+    const competencias = await db
+      .select({
+        id: silaboCompetenciaCurso.id,
+        codigo: silaboCompetenciaCurso.codigo,
+        descripcion: silaboCompetenciaCurso.descripcion,
+        orden: silaboCompetenciaCurso.orden,
+      })
+      .from(silaboCompetenciaCurso)
+      .where(eq(silaboCompetenciaCurso.silaboId, id))
+      .orderBy(silaboCompetenciaCurso.orden);
+
+    // 4. Componentes de Competencias (Conceptuales, Procedimentales, Actitudinales)
+    const componentesConceptuales = await db
+      .select()
+      .from(silaboCompetenciaComponente)
+      .where(
+        and(
+          eq(silaboCompetenciaComponente.silaboId, id),
+          eq(silaboCompetenciaComponente.grupo, "COMP"),
+        ),
+      )
+      .orderBy(silaboCompetenciaComponente.orden);
+
+    const componentesProcedimentales = await db
+      .select()
+      .from(silaboCompetenciaComponente)
+      .where(
+        and(
+          eq(silaboCompetenciaComponente.silaboId, id),
+          eq(silaboCompetenciaComponente.grupo, "PROC"),
+        ),
+      )
+      .orderBy(silaboCompetenciaComponente.orden);
+
+    const componentesActitudinales = await db
+      .select()
+      .from(silaboCompetenciaComponente)
+      .where(
+        and(
+          eq(silaboCompetenciaComponente.silaboId, id),
+          eq(silaboCompetenciaComponente.grupo, "ACT"),
+        ),
+      )
+      .orderBy(silaboCompetenciaComponente.orden);
+
+    // 5. Resultados de Aprendizaje
+    const resultadosAprendizaje = await db
+      .select()
+      .from(schema.silaboResultadoAprendizaje)
+      .where(eq(schema.silaboResultadoAprendizaje.silaboId, id))
+      .orderBy(schema.silaboResultadoAprendizaje.orden);
+
+    // 6. Unidades Didácticas
+    const unidades = await db
+      .select()
+      .from(schema.silaboUnidad)
+      .where(eq(schema.silaboUnidad.silaboId, id))
+      .orderBy(schema.silaboUnidad.numero);
+
+    // 7. Estrategias Metodológicas (del silabo principal)
+    const estrategiasResult = await db
+      .select({ estrategias: silabo.estrategiasMetodologicas })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
+    // 8. Recursos Didácticos
+    const recursos = await db
+      .select({
+        id: schema.silaboRecursoDidactico.id,
+        recursoId: schema.silaboRecursoDidactico.recursoId,
+        recursoNombre: schema.recursoDidacticoCatalogo.nombre,
+        destino: schema.silaboRecursoDidactico.destino,
+        observaciones: schema.silaboRecursoDidactico.observaciones,
+      })
+      .from(schema.silaboRecursoDidactico)
+      .innerJoin(
+        schema.recursoDidacticoCatalogo,
+        eq(
+          schema.silaboRecursoDidactico.recursoId,
+          schema.recursoDidacticoCatalogo.id,
+        ),
+      )
+      .where(eq(schema.silaboRecursoDidactico.silaboId, id));
+
+    // 9. Plan de Evaluación
+    const planEvaluacion = await db
+      .select()
+      .from(schema.planEvaluacionOferta)
+      .where(eq(schema.planEvaluacionOferta.silaboId, id))
+      .orderBy(schema.planEvaluacionOferta.semana);
+
+    // Formula de Evaluación
+    const formulaEvaluacion = await db
+      .select({
+        expresion: schema.formulaEvaluacionRegla.expresionFinal,
+      })
+      .from(schema.formulaEvaluacionRegla)
+      .where(
+        and(
+          eq(schema.formulaEvaluacionRegla.silaboId, id),
+          eq(schema.formulaEvaluacionRegla.activo, true),
+        ),
+      )
+      .limit(1);
+
+    // 10. Fuentes de Información
+    const fuentes = await db
+      .select({
+        id: schema.silaboFuente.id,
+        tipo: schema.silaboFuente.tipo,
+        autores: schema.silaboFuente.autores,
+        anio: schema.silaboFuente.anio,
+        titulo: schema.silaboFuente.titulo,
+        editorial: schema.silaboFuente.editorialRevista,
+        ciudad: schema.silaboFuente.ciudad,
+        isbn: schema.silaboFuente.isbnIssn,
+        url: schema.silaboFuente.doiUrl,
+      })
+      .from(schema.silaboFuente)
+      .where(eq(schema.silaboFuente.silaboId, id));
+
+    // 11. Aportes a Resultados del Programa
+    const aportes = await db
+      .select({
+        resultadoCodigo:
+          schema.silaboAporteResultadoPrograma.resultadoProgramaCodigo,
+        resultadoDescripcion:
+          schema.silaboAporteResultadoPrograma.resultadoProgramaDescripcion,
+        aporteValor: schema.silaboAporteResultadoPrograma.aporteValor,
+      })
+      .from(schema.silaboAporteResultadoPrograma)
+      .where(eq(schema.silaboAporteResultadoPrograma.silaboId, id));
+
+    return {
+      datosGenerales: {
+        ...datosGenerales,
+        areaCurricular: null, // Si no está en DB, null
+      },
+      sumilla: sumillaResult[0]?.contenido || null,
+      competenciasCurso: competencias,
+      componentesConceptuales,
+      componentesProcedimentales,
+      componentesActitudinales,
+      resultadosAprendizaje,
+      unidadesDidacticas: unidades,
+      estrategiasMetodologicas: estrategiasResult[0]?.estrategias || null,
+      recursosDidacticos: recursos,
+      evaluacionAprendizaje: {
+        planEvaluacion,
+        formulaEvaluacion: formulaEvaluacion[0]?.expresion || null,
+      },
+      fuentes,
+      aportesResultadosPrograma: aportes,
+    };
   }
 }
 
