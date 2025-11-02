@@ -277,4 +277,26 @@ export class SyllabusController implements Updatable {
 
     return { status: 200, jsonBody: result };
   }
+
+  @route("/{id}/complete", "GET")
+  async getCompleteSyllabus(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    if (typeof id !== "number" || Number.isNaN(id) || !Number.isFinite(id)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "ID de sílabo inválido");
+    }
+
+    const result = await syllabusService.getCompleteSyllabus(id);
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Sílabo completo obtenido correctamente",
+        data: result,
+      },
+    };
+  }
 }

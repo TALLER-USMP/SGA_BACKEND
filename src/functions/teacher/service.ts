@@ -1,14 +1,30 @@
 import { AppError } from "../../error";
-import { docenteRepository } from "./repository";
+import { teacherRepository } from "./repository";
 import {
   TeacherProfileOutSchema,
   TeacherProfileUpdateSchema,
+  TeacherListItemSchema,
   type TeacherProfileOut,
+  type TeacherListResponse,
 } from "./types";
 
 class TeacherService {
+  async listTeachers(): Promise<TeacherListResponse> {
+    const teachers = await teacherRepository.findAll();
+
+    // Validate each teacher item
+    const validatedItems = teachers.map((teacher: any) =>
+      TeacherListItemSchema.parse(teacher),
+    );
+
+    return {
+      items: validatedItems,
+      total: validatedItems.length,
+    };
+  }
+
   async getProfile(docenteId: number): Promise<TeacherProfileOut> {
-    const profile = await docenteRepository.findByDocenteId(docenteId);
+    const profile = await teacherRepository.findById(docenteId);
     if (!profile) {
       throw new AppError("NotFound", "NOT_FOUND", "docenteId not found");
     }
@@ -21,7 +37,7 @@ class TeacherService {
   ): Promise<TeacherProfileOut> {
     const parsed = TeacherProfileUpdateSchema.parse(payload);
 
-    const updated = await docenteRepository.updateByDocenteId(
+    const updated = await teacherRepository.updateByDocenteId(
       docenteId,
       parsed,
     );

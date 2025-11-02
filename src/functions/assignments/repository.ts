@@ -1,26 +1,17 @@
-import { getDb } from "../../db";
+import { and, asc, eq, ilike } from "drizzle-orm";
 import { silabo, silaboDocente, docente } from "../../../drizzle/schema";
-import { ilike, eq, and, asc } from "drizzle-orm";
-import type { SilaboListItem, SilaboFilters } from "./types";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { getDb } from "../../db";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
+import { BaseRepository } from "../../lib/repository";
+import type {
+  CreateAssignmentPayload,
+  SilaboFilters,
+  SilaboListItem,
+} from "./types";
 
-class AssignmentsRepository {
-  private db: NodePgDatabase<typeof schema>;
-
-  constructor() {
-    const database = getDb();
-    if (!database) {
-      throw new AppError(
-        "DatabaseError",
-        "INTERNAL_SERVER_ERROR",
-        "No se pudo obtener la conexión a la base de datos",
-      );
-    }
-    this.db = database as unknown as NodePgDatabase<typeof schema>;
-  }
-
+class AssignmentsRepository extends BaseRepository {
   async getAll(filters?: SilaboFilters): Promise<SilaboListItem[]> {
     try {
       const conditions: any[] = [];
@@ -39,11 +30,11 @@ class AssignmentsRepository {
       }
 
       if (filters?.idSilabo !== undefined) {
-        conditions.push(eq(silabo.id, filters.idSilabo));
+        conditions.push(eq(silabo.id, Number(filters.idSilabo)));
       }
 
       if (filters?.idDocente !== undefined) {
-        conditions.push(eq(silaboDocente.docenteId, filters.idDocente));
+        conditions.push(eq(silaboDocente.docenteId, Number(filters.idDocente)));
       }
       if (filters?.areaCurricular !== undefined) {
         conditions.push(eq(silabo.areaCurricular, filters.areaCurricular));
@@ -94,6 +85,20 @@ class AssignmentsRepository {
       );
     }
   }
+
+  async create(assigment: CreateAssignmentPayload) {
+    return await this.db.transaction((transaction) => {
+      return transaction
+        .insert(silaboDocente)
+        .values({
+          silaboId: assigment.syllabus.id,
+          docenteId: assigment.teacher.id,
+          rol: "asignado",
+          observaciones: assigment.message,
+        })
+        .returning();
+    });
+  }
 }
 
-export const SilaboRepository = new AssignmentsRepository();
+export const assignmentsRepository = new AssignmentsRepository();
