@@ -35,6 +35,21 @@ export class AssignmentsController implements Listable {
     };
   }
 
+  @route("/courses", "GET")
+  async getAllCourses(req: HttpRequest): Promise<HttpResponseInit> {
+    const courses = await assignmentsService.getAllCourses();
+
+    return {
+      status: STATUS_CODES.OK,
+      headers: { "Content-Type": "application/json" },
+      jsonBody: {
+        success: true,
+        message: "Lista de cursos obtenida correctamente.",
+        data: courses,
+      },
+    };
+  }
+
   @route("/", "POST")
   async createAssignment(req: HttpRequest) {
     const body = await req.json();

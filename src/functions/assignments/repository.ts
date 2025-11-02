@@ -9,6 +9,7 @@ import type {
   CreateAssignmentPayload,
   SilaboFilters,
   SilaboListItem,
+  CourseSimple,
 } from "./types";
 
 class AssignmentsRepository extends BaseRepository {
@@ -98,6 +99,39 @@ class AssignmentsRepository extends BaseRepository {
         })
         .returning();
     });
+  }
+
+  async getAllCourses(): Promise<CourseSimple[]> {
+    try {
+      const result = await this.db
+        .select({
+          id: silabo.id,
+          code: silabo.cursoCodigo,
+          name: silabo.cursoNombre,
+          ciclo: silabo.ciclo,
+          escuela: silabo.escuelaProfesional,
+        })
+        .from(silabo)
+        .orderBy(asc(silabo.cursoCodigo));
+
+      return result.map((r) => ({
+        id: r.id,
+        code: r.code ?? null,
+        name: r.name ?? null,
+        ciclo: r.ciclo ?? null,
+        escuela: r.escuela ?? null,
+      }));
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Error al consultar cursos en la base de datos",
+        error,
+      );
+    }
   }
 }
 

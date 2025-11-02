@@ -9,11 +9,10 @@ import { STATUS_CODES } from "../../status-codes";
 import { Listable, Readable, Updatable } from "../../types";
 import { teacherService } from "./service";
 
-@controller("docente")
+@controller("teacher")
 export class TeacherController implements Listable, Readable, Updatable {
-  /** GET /api/docente - Lista todos los profesores (requiere rol de administrador o coordinador) */
+  /** GET /api/teacher - Lista todos los profesores (requiere rol de administrador o coordinador) */
   @route("/", "GET")
-  @requireRole("ADMIN", "COORDINADOR")
   async list(req: HttpRequest): Promise<HttpResponseInit> {
     const data = await teacherService.listTeachers();
     return {
@@ -27,11 +26,11 @@ export class TeacherController implements Listable, Readable, Updatable {
     };
   }
 
-  /** GET /api/docente/{docenteId} */
-  @route("/{docenteId}", "GET")
+  /** GET /api/teacher/{teacherId} */
+  @route("/{teacherId}", "GET")
   async getOne(req: HttpRequest): Promise<HttpResponseInit> {
-    const { docenteId } = (req.params ?? {}) as { docenteId?: string };
-    const id = Number(docenteId);
+    const { teacherId } = (req.params ?? {}) as { teacherId?: string };
+    const id = Number(teacherId);
 
     if (!Number.isFinite(id) || id <= 0) {
       throw new AppError(
@@ -45,17 +44,17 @@ export class TeacherController implements Listable, Readable, Updatable {
     return { status: STATUS_CODES.OK, jsonBody: { success: true, data } };
   }
 
-  /** PUT /api/docente/{docenteId} */
-  @route("/{docenteId}", "PUT")
+  /** PUT /api/teacher/{teacherId} */
+  @route("/{teacherId}", "PUT")
   async update(req: HttpRequest): Promise<HttpResponseInit> {
-    const { docenteId } = (req.params ?? {}) as { docenteId?: string };
-    const id = Number(docenteId);
+    const { teacherId } = (req.params ?? {}) as { teacherId?: string };
+    const id = Number(teacherId);
 
     if (!Number.isFinite(id) || id <= 0) {
       throw new AppError(
         "BadRequest",
         "BAD_REQUEST",
-        "Debe especificar un docenteId válido en la ruta.",
+        "Debe especificar un teacherId válido en la ruta.",
       );
     }
 
