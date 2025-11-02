@@ -299,4 +299,133 @@ export class SyllabusController implements Updatable {
       },
     };
   }
+
+  // ====== REVISION ======
+  // GET /api/syllabus/revision
+  @route("/revision", "GET")
+  async getSyllabusInRevision(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const estado = req.query.get("estado") || undefined;
+    const docenteIdStr = req.query.get("docenteId");
+    const docenteId = docenteIdStr ? Number(docenteIdStr) : undefined;
+
+    const result = await syllabusService.getAllCoursesInRevision(
+      estado,
+      docenteId,
+    );
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Lista de sílabos en revisión obtenida correctamente",
+        data: result,
+        total: result.length,
+      },
+    };
+  }
+
+  // GET /api/syllabus/revision/{id}
+  @route("/revision/{id}", "GET")
+  async getSyllabusRevisionById(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const result = await syllabusService.getSyllabusRevisionById(id);
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Sílabo obtenido correctamente",
+        data: result,
+      },
+    };
+  }
+
+  // POST /api/syllabus/{id}/aprobar
+  @route("/{id}/aprobar", "POST")
+  async approveSyllabus(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const body = await req.json();
+
+    const result = await syllabusService.approveSyllabus(id, body);
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Sílabo aprobado correctamente",
+        data: result,
+      },
+    };
+  }
+
+  // POST /api/syllabus/{id}/desaprobar
+  @route("/{id}/desaprobar", "POST")
+  async disapproveSyllabus(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const body = await req.json();
+
+    const result = await syllabusService.disapproveSyllabus(id, body);
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Sílabo desaprobado correctamente",
+        data: result,
+      },
+    };
+  }
+
+  // GET /api/syllabus/{id}/revision
+  @route("/{id}/revision", "GET")
+  async getRevisionData(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+
+    const result = await syllabusService.getRevisionData(id);
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Datos de revisión obtenidos correctamente",
+        data: result,
+      },
+    };
+  }
+
+  // POST /api/syllabus/{id}/revision
+  @route("/{id}/revision", "POST")
+  async saveRevisionData(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const body = await req.json();
+
+    const result = await syllabusService.saveRevisionData(id, body);
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Datos de revisión guardados correctamente",
+        data: result,
+      },
+    };
+  }
 }

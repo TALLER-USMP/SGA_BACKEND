@@ -8,6 +8,7 @@ import {
   silaboDocente,
   docente,
   silaboSumilla,
+  silaboRevisionSeccion,
 } from "../../../drizzle/schema";
 import { AppError } from "../../error";
 import { z } from "zod";
@@ -512,6 +513,174 @@ export class SyllabusRepository extends BaseRepository {
       fuentes,
       aportesResultadosPrograma: aportes,
     };
+  }
+
+  // ---------- REVISIÓN ----------
+  async findAllSyllabusInRevision(estado?: string, docenteId?: number) {
+    let query = this.db
+      .select({
+        id: silabo.id,
+        cursoNombre: silabo.cursoNombre,
+        cursoCodigo: silabo.cursoCodigo,
+        departamentoAcademico: silabo.departamentoAcademico,
+        escuelaProfesional: silabo.escuelaProfesional,
+        estadoRevision: silabo.estadoRevision,
+        asignadoADocenteId: silabo.asignadoADocenteId,
+        nombreDocente: docente.nombreDocente,
+        createdAt: silabo.createdAt,
+        updatedAt: silabo.updatedAt,
+      })
+      .from(silabo)
+      .leftJoin(docente, eq(silabo.asignadoADocenteId, docente.id));
+
+    // Aplicar filtros si existen
+    const conditions = [];
+    if (estado) {
+      conditions.push(eq(silabo.estadoRevision, estado));
+    }
+    if (docenteId) {
+      conditions.push(eq(silabo.asignadoADocenteId, docenteId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const result = await query.orderBy(silabo.updatedAt);
+    return result;
+  }
+
+  async findSyllabusRevisionById(id: number) {
+    const result = await this.db
+      .select({
+        id: silabo.id,
+        cursoNombre: silabo.cursoNombre,
+        cursoCodigo: silabo.cursoCodigo,
+        departamentoAcademico: silabo.departamentoAcademico,
+        escuelaProfesional: silabo.escuelaProfesional,
+        estadoRevision: silabo.estadoRevision,
+        asignadoADocenteId: silabo.asignadoADocenteId,
+        nombreDocente: docente.nombreDocente,
+        createdAt: silabo.createdAt,
+        updatedAt: silabo.updatedAt,
+      })
+      .from(silabo)
+      .leftJoin(docente, eq(silabo.asignadoADocenteId, docente.id))
+      .where(eq(silabo.id, id))
+      .limit(1);
+
+    return result[0] || null;
+  }
+
+  async updateSyllabusStatus(
+    id: number,
+    data: {
+      estadoRevision: string;
+      observaciones?: string | null;
+      actualizadoPorDocenteId?: number | null;
+    },
+  ) {
+    const updateData: any = {
+      estadoRevision: data.estadoRevision,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (data.observaciones !== undefined) {
+      updateData.observaciones = data.observaciones;
+    }
+
+    if (data.actualizadoPorDocenteId !== undefined) {
+      updateData.actualizadoPorDocenteId = data.actualizadoPorDocenteId;
+    }
+
+    const result = await this.db
+      .update(silabo)
+      .set(updateData)
+      .where(eq(silabo.id, id))
+      .returning();
+
+    return result[0];
+  }
+
+  // ---------- REVISIÓN DE SECCIONES ----------
+  async findRevisionSections(silaboId: number) {
+    const result = await this.db
+      .select({
+        id: silaboRevisionSeccion.id,
+        numeroSeccion: silaboRevisionSeccion.numeroSeccion,
+        nombreSeccion: silaboRevisionSeccion.nombreSeccion,
+        estado: silaboRevisionSeccion.estado,
+        revisadoPor: silaboRevisionSeccion.revisadoPor,
+        revisadoEn: silaboRevisionSeccion.revisadoEn,
+        comentariosCount: silaboRevisionSeccion.comentariosCount,
+        nombreDocente: docente.nombreDocente,
+      })
+      .from(silaboRevisionSeccion)
+      .leftJoin(docente, eq(silaboRevisionSeccion.revisadoPor, docente.id))
+      .where(eq(silaboRevisionSeccion.silaboId, silaboId))
+      .orderBy(silaboRevisionSeccion.numeroSeccion);
+
+    return result;
+  }
+
+  async upsertRevisionSections(
+    silaboId: number,
+    secciones: Array<{
+      numeroSeccion: number;
+      nombreSeccion: string;
+      estado?: string;
+    }>,
+    docenteId?: number,
+  ) {
+    const results = [];
+
+    for (const seccion of secciones) {
+      // Verificar si ya existe
+      const existing = await this.db
+        .select()
+        .from(silaboRevisionSeccion)
+        .where(
+          and(
+            eq(silaboRevisionSeccion.silaboId, silaboId),
+            eq(silaboRevisionSeccion.numeroSeccion, seccion.numeroSeccion),
+          ),
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Actualizar existente
+        const updated = await this.db
+          .update(silaboRevisionSeccion)
+          .set({
+            nombreSeccion: seccion.nombreSeccion,
+            estado: seccion.estado || existing[0].estado,
+            revisadoPor: docenteId || existing[0].revisadoPor,
+            revisadoEn: new Date().toISOString(),
+          })
+          .where(eq(silaboRevisionSeccion.id, existing[0].id))
+          .returning();
+
+        results.push(updated[0]);
+      } else {
+        // Insertar nuevo
+        const inserted = await this.db
+          .insert(silaboRevisionSeccion)
+          .values({
+            silaboId,
+            numeroSeccion: seccion.numeroSeccion,
+            nombreSeccion: seccion.nombreSeccion,
+            estado: seccion.estado || "PENDIENTE",
+            revisadoPor: docenteId || null,
+            revisadoEn: new Date().toISOString(),
+            comentariosCount: 0,
+          })
+          .returning();
+
+        results.push(inserted[0]);
+      }
+    }
+
+    return results;
   }
 }
 
