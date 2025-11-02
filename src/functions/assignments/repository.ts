@@ -1,10 +1,11 @@
 import { getDb } from "../../db";
 import { silabo, silaboDocente } from "../../../drizzle/schema";
-import { ilike, eq, and, asc } from "drizzle-orm";
+import { ilike, eq, and, asc, is } from "drizzle-orm";
 import type { SilaboListItem, SilaboFilters } from "./types";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
+import { id } from "zod/v4/locales/index.cjs";
 
 class AssignmentsRepository {
   private db: NodePgDatabase<typeof schema>;
@@ -46,6 +47,12 @@ class AssignmentsRepository {
         conditions.push(eq(silaboDocente.docenteId, filters.idDocente));
       }
 
+      if (filters?.estadoRevision?.trim()) {
+        conditions.push(
+          eq(silabo.estadoRevision, filters.estadoRevision.trim()),
+        );
+      }
+
       const query = this.db
         .select({
           cursoCodigo: silabo.cursoCodigo,
@@ -66,6 +73,58 @@ class AssignmentsRepository {
       query.orderBy(asc(silabo.cursoCodigo));
 
       const result = await query;
+
+      return result.map((r) => ({
+        cursoCodigo: r.cursoCodigo ?? null,
+        cursoNombre: r.cursoNombre ?? null,
+        estadoRevision: r.estadoRevision ?? null,
+        syllabusId: r.syllabusId,
+        docenteId: r.docenteId ?? null,
+      }));
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Error al consultar sílabos en la base de datos",
+        error,
+      );
+    }
+  }
+
+  async getByStatus(
+    idDocente: string,
+    estadoRevision: string,
+  ): Promise<SilaboListItem[]> {
+    try {
+      const idDocenteNum = Number(idDocente);
+
+      if (isNaN(idDocenteNum) || idDocenteNum <= 0) {
+        throw new AppError(
+          "ValidationError",
+          "BAD_REQUEST",
+          "El idDocente debe ser un número válido mayor que cero",
+        );
+      }
+      const result = await this.db
+        .select({
+          cursoCodigo: silabo.cursoCodigo,
+          cursoNombre: silabo.cursoNombre,
+          estadoRevision: silabo.estadoRevision,
+          syllabusId: silabo.id,
+          docenteId: silaboDocente.docenteId,
+        })
+        .from(silabo)
+        .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId))
+        .where(
+          and(
+            eq(silaboDocente.docenteId, idDocenteNum),
+            eq(silabo.estadoRevision, estadoRevision),
+          ),
+        )
+        .orderBy(asc(silabo.cursoCodigo));
 
       return result.map((r) => ({
         cursoCodigo: r.cursoCodigo ?? null,
