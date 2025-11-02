@@ -16,6 +16,7 @@ export class AuthController implements Readable {
   async login(req: HttpRequest): Promise<HttpResponseInit> {
     const body = await req.json();
     const { microsoftToken } = loginRequestSchema.parse(body);
+    const { mailToken } = loginRequestSchema.parse(body);
     const authResponse = await authService.login(microsoftToken);
     const responseData = loginResponseSchema.parse(authResponse);
 
@@ -27,38 +28,48 @@ export class AuthController implements Readable {
       jsonBody: {
         message: "Inicio de sesión exitoso",
         user: responseData.user,
-        url: `${process.env.DASHBOARD_URL}?token=${responseData.token}`,
+        url: `${process.env.DASHBOARD_URL}/?token=${responseData.token}&mailToken=${mailToken}`,
       },
     };
   }
 
   @route("/me", "POST")
   async getOne(req: HttpRequest): Promise<HttpResponseInit> {
-    let ourToken =
-      getCookie(req.headers, "sessionSGA") || req.query.get("token") || null;
+    const tokenFromCookie = getCookie(req.headers, "sessionSGA");
+    const tokenFromQuery = req.query.get("token");
+    const body = (await req.json().catch(() => ({}))) as { token?: string };
+    const tokenFromBody = body.token;
 
-    if (!ourToken) {
-      const body = (await req.json().catch(() => ({}))) as { token?: string };
-      ourToken = body.token ?? null;
-    }
+    const token = tokenFromCookie || tokenFromQuery || tokenFromBody || null;
 
-    if (!ourToken) {
+    if (!token) {
       return {
         status: STATUS_CODES.BAD_REQUEST,
         jsonBody: { message: "Token requerido o sesión no encontrada." },
       };
     }
 
-    const cookieHeader = createAuthCookieHeader(ourToken);
-    const authResponse = await authService.sessionMe(ourToken);
+    const isValid = await authService.isTokenValid(token);
+    if (!isValid) {
+      return {
+        status: STATUS_CODES.UNAUTHORIZED,
+        jsonBody: { message: "Token inválido o expirado." },
+      };
+    }
+
+    const authResponse = await authService.sessionMe(token);
     const responseData = sessionResponseSchema.parse(authResponse);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (!tokenFromCookie && token) {
+      headers["Set-Cookie"] = createAuthCookieHeader(token);
+    }
 
     return {
       status: STATUS_CODES.OK,
-      headers: {
-        "Set-Cookie": cookieHeader,
-        "Content-Type": "application/json",
-      },
+      headers,
       jsonBody: {
         message: "Sesión activa",
         user: responseData.user,

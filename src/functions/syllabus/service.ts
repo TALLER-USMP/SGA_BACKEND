@@ -16,6 +16,12 @@ export class SyllabusService {
     return syllabusRepository.listCompetencies(syllabusId);
   }
 
+  async getSumillaBySilaboId(silaboId: number) {
+    const result = await syllabusRepository.findSumillaBySilaboId(silaboId);
+
+    return result;
+  }
+
   async removeCompetency(syllabusId: string, id: string) {
     const { deleted } = await syllabusRepository.deleteCompetency(
       syllabusId,
@@ -208,7 +214,7 @@ export class SyllabusService {
       message: "🗑️ El item se elimino con éxito",
     };
   }
-  async registerSumilla(idSyllabus: number, payload: unknown) {
+  async updateSumilla(idSyllabus: number, payload: unknown) {
     let sumilla;
     // ✅ Validar con Zod
     const parsed = SumillaSchema.parse(payload);
@@ -223,6 +229,23 @@ export class SyllabusService {
 
     // ✅ Actualizar en la BD
     await syllabusRepository.updateSumilla(idSyllabus, sumilla);
+
+    return { message: "Sumilla actualizada correctamente" };
+  }
+  async registerSumilla(idSyllabus: number, payload: unknown) {
+    // ✅ Validar con Zod
+    const parsed = SumillaSchema.parse(payload);
+    const sumilla = parsed.sumilla;
+    if (!sumilla) {
+      throw new AppError(
+        "ValidationError",
+        "BAD_REQUEST",
+        "Datos inválidos: " + "Error en la sumilla",
+      );
+    }
+
+    // ✅ Actualizar en la BD
+    await syllabusRepository.saveSumilla(idSyllabus, sumilla);
 
     return { message: "Sumilla registrada correctamente" };
   }
@@ -268,6 +291,22 @@ export class SyllabusService {
   // ---------- APORTE ----------
   async createAporte(data: ContributionCreateType) {
     const result = await syllabusRepository.createContribution(data);
+    return result;
+  }
+
+  // ---------- SÍLABO COMPLETO ----------
+  async getCompleteSyllabus(id: number) {
+    const result = await syllabusRepository.getCompleteSyllabus(id);
+
+    // Verificar que el sílabo exista
+    if (!result) {
+      throw new AppError(
+        "NotFound",
+        "NOT_FOUND",
+        `Sílabo con ID ${id} no encontrado`,
+      );
+    }
+
     return result;
   }
 }

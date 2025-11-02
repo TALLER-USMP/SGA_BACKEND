@@ -4,8 +4,9 @@ import { z } from "zod";
 export const silaboFiltersSchema = z.object({
   codigo: z.string().optional(),
   nombre: z.string().optional(),
-  idSilabo: z.coerce.string().optional(),
-  idDocente: z.coerce.string().optional(),
+  idSilabo: z.number().int().positive().optional(),
+  idDocente: z.number().int().positive().optional(),
+  areaCurricular: z.string().optional(),
 });
 export type SilaboFilters = z.infer<typeof silaboFiltersSchema>;
 
@@ -39,6 +40,7 @@ export const listQueryParamsSchema = z.object({
       (v) => v === undefined || (Number.isInteger(v) && v > 0),
       "idDocente inválido",
     ),
+  areaCurricular: z.string().optional(),
 });
 
 export const createAssignmentRequestSchema = z.object({

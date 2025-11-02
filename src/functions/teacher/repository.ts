@@ -1,21 +1,27 @@
 import { getDb } from "../../db";
 import { eq, isNotNull } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
 
 export class TeacherRepository {
-  /** Lista todos los docentes activos con sus categorías */
-  async findAll() {
-    const db = (await getDb()) as any;
-    if (!db) {
+  private db: NodePgDatabase<typeof schema>;
+
+  constructor() {
+    const database = getDb();
+    if (!database) {
       throw new AppError(
         "DatabaseError",
         "INTERNAL_SERVER_ERROR",
         "Database not connected",
       );
     }
+    this.db = database as unknown as NodePgDatabase<typeof schema>;
+  }
 
-    const rows = await db
+  /** Lista todos los docentes activos con sus categorías */
+  async findAll() {
+    const rows = await this.db
       .select({
         id: schema.docente.id,
         nombre: schema.docente.nombreDocente,
@@ -52,16 +58,7 @@ export class TeacherRepository {
 
   /** Obtiene el perfil de un docente por su ID */
   async findById(docenteId: number) {
-    const db = (await getDb()) as any;
-    if (!db) {
-      throw new AppError(
-        "DatabaseError",
-        "INTERNAL_SERVER_ERROR",
-        "Database not connected",
-      );
-    }
-
-    const rows = await db
+    const rows = await this.db
       .select({
         id: schema.docente.id,
         nombre: schema.docente.nombreDocente,
@@ -100,15 +97,6 @@ export class TeacherRepository {
       correo?: string;
     },
   ) {
-    const db = (await getDb()) as any;
-    if (!db) {
-      throw new AppError(
-        "DatabaseError",
-        "INTERNAL_SERVER_ERROR",
-        "Database not connected",
-      );
-    }
-
     // Usa el tipo inferido del insert/update para no equivocarte con los nombres.
     const setObj: Partial<typeof schema.docente.$inferInsert> = {};
 
@@ -137,12 +125,12 @@ export class TeacherRepository {
       return this.findById(docenteId);
     }
 
-    await db
+    await this.db
       .update(schema.docente)
       .set(setObj)
       .where(eq(schema.docente.id, docenteId));
 
-    const after = await db
+    const after = await this.db
       .select({
         nombre: schema.docente.nombreDocente,
         correo: schema.docente.correo,

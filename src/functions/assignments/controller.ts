@@ -11,22 +11,19 @@ export class AssignmentsController implements Listable {
   async list(req: HttpRequest): Promise<HttpResponseInit> {
     const codigo = req.query.get("codigo")?.trim() || undefined;
     const nombre = req.query.get("nombre")?.trim() || undefined;
-    const idSilabo = req.query.get("idSilabo")?.trim() || undefined;
-    const idDocente = req.query.get("idDocente")?.trim() || undefined;
+    const idSilaboParam = req.query.get("idSilabo")?.trim() || undefined;
+    const idDocenteParam = req.query.get("idDocente")?.trim() || undefined;
+    const areaCurricular = req.query.get("areaCurricular")?.trim() || undefined;
 
-    listQueryParamsSchema.parse({
+    const filters = listQueryParamsSchema.parse({
       codigo,
       nombre,
-      idSilabo,
-      idDocente,
+      idSilabo: idSilaboParam,
+      idDocente: idDocenteParam,
+      areaCurricular: areaCurricular,
     });
 
-    const items = await assignmentsService.list({
-      codigo,
-      nombre,
-      idSilabo,
-      idDocente,
-    });
+    const items = await assignmentsService.list(filters);
 
     return {
       status: STATUS_CODES.OK,

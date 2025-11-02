@@ -1,4 +1,3 @@
-import { getDb } from "../../db";
 import { eq, and } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
@@ -8,10 +7,12 @@ import {
   silabo,
   silaboDocente,
   docente,
+  silaboSumilla,
 } from "../../../drizzle/schema";
 import { AppError } from "../../error";
 import { z } from "zod";
 import { SyllabusCreateSchema } from "./types";
+import { BaseRepository } from "../../lib/repository";
 
 //1
 type Upsertable = { id?: number | string; text: string; order?: number | null };
@@ -20,35 +21,17 @@ type CreateItem = { text: string; order?: number | null; code?: string | null };
 const GROUP_COMP = "COMP";
 const GROUP_ACT = "ACT";
 
-function getDbOrThrow(): NodePgDatabase<typeof schema> {
-  const db = getDb() as unknown;
-  if (!db)
-    throw new AppError(
-      "DbConnectionError",
-      "INTERNAL_SERVER_ERROR",
-      "DB no inicializada",
-    );
-  return db as NodePgDatabase<typeof schema>;
-}
-
-export class SyllabusRepository {
+export class SyllabusRepository extends BaseRepository {
   async findById(id: number) {
-    const db = getDb();
-
-    const syllabus = await db!.select().from(silabo).where(eq(silabo.id, id));
-
+    const syllabus = await this.db
+      .select()
+      .from(silabo)
+      .where(eq(silabo.id, id));
     return syllabus[0] || null;
   }
 
   async findGeneralDataById(id: number) {
-    const db = getDbOrThrow();
-    if (!db)
-      throw new AppError(
-        "DatabaseError",
-        "INTERNAL_SERVER_ERROR",
-        "Database not connected",
-      );
-    const silaboResult = await db
+    const silaboResult = await this.db
       .select({
         nombreAsignatura: silabo.cursoNombre,
         departamentoAcademico: silabo.departamentoAcademico,
@@ -81,7 +64,11 @@ export class SyllabusRepository {
       .from(silabo)
       .where(eq(silabo.id, id));
 
-    const docentes = await db
+    if (!silaboResult || silaboResult.length === 0) {
+      return null;
+    }
+
+    const docentes = await this.db
       .select({ nombreDocente: docente.nombreDocente })
       .from(silaboDocente)
       .innerJoin(docente, eq(silaboDocente.docenteId, docente.id))
@@ -100,14 +87,7 @@ export class SyllabusRepository {
   }
 
   async create(syllabusData: z.infer<typeof SyllabusCreateSchema>) {
-    const db = getDbOrThrow();
-    if (!db)
-      throw new AppError(
-        "DatabaseError",
-        "INTERNAL_SERVER_ERROR",
-        "Database not connected",
-      );
-    const result = await db
+    const result = await this.db
       .insert(silabo)
       .values({
         departamentoAcademico: syllabusData.departamentoAcademico,
@@ -167,27 +147,39 @@ export class SyllabusRepository {
     return result[0].id;
   }
 
-  async updateSumilla(id: number, sumilla: string) {
-    const db = getDbOrThrow();
-    if (!db)
-      throw new AppError(
-        "DatabaseError",
-        "INTERNAL_SERVER_ERROR",
-        "Database not connected",
-      );
-    await db
-      .update(silabo)
+  async updateSumilla(silaboId: number, sumilla: string) {
+    await this.db
+      .update(silaboSumilla)
       .set({
-        sumilla,
+        contenido: sumilla,
         updatedAt: new Date().toISOString(),
-      } as any)
-      .where(eq(silabo.id, id));
+      })
+      .where(eq(silaboSumilla.silaboId, silaboId));
+  }
+
+  async saveSumilla(silaboId: number, sumilla: string) {
+    await this.db.insert(silaboSumilla).values({
+      silaboId: silaboId,
+      contenido: sumilla,
+      es_actual: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
+  }
+
+  async findSumillaBySilaboId(silaboId: number) {
+    return await this.db
+      .select({
+        sumilla: silaboSumilla.contenido,
+      })
+      .from(silaboSumilla)
+      .where(eq(silaboSumilla.silaboId, silaboId))
+      .limit(1);
   }
 
   // ---------- COMPETENCIAS (silabo_competencia_curso) ----------
   listCompetencies(syllabusId: number | string) {
-    const db = getDbOrThrow();
-    return db
+    return this.db
       .select({
         id: silaboCompetenciaCurso.id,
         silaboId: silaboCompetenciaCurso.silaboId,
@@ -203,9 +195,8 @@ export class SyllabusRepository {
     syllabusId: number | string,
     items: { text: string; code: string | null; order: number | null }[],
   ) {
-    const db = getDbOrThrow();
     for (const it of items) {
-      await db.insert(silaboCompetenciaCurso).values({
+      await this.db.insert(silaboCompetenciaCurso).values({
         silaboId: Number(syllabusId),
         descripcion: it.text,
         codigo: it.code ?? null,
@@ -216,8 +207,7 @@ export class SyllabusRepository {
   }
 
   async deleteCompetency(syllabusId: number | string, id: number | string) {
-    const db = getDbOrThrow();
-    const res = await db
+    const res = await this.db
       .delete(silaboCompetenciaCurso)
       .where(
         and(
@@ -230,8 +220,7 @@ export class SyllabusRepository {
 
   // ---------- COMPONENTES (silabo_competencia_componente.grupo='COMP') ----------
   async listComponents(syllabusId: number) {
-    const db = getDbOrThrow();
-    return db
+    return this.db
       .select()
       .from(silaboCompetenciaComponente)
       .where(
@@ -244,9 +233,8 @@ export class SyllabusRepository {
   }
 
   async insertComponents(syllabusId: number, items: CreateItem[]) {
-    const db = getDbOrThrow();
     for (const it of items) {
-      await db.insert(silaboCompetenciaComponente).values({
+      await this.db.insert(silaboCompetenciaComponente).values({
         silaboId: syllabusId,
         grupo: GROUP_COMP,
         descripcion: it.text,
@@ -258,8 +246,7 @@ export class SyllabusRepository {
   }
 
   async deleteComponent(syllabusId: number, id: number) {
-    const db = getDbOrThrow();
-    const res = await db
+    const res = await this.db
       .delete(silaboCompetenciaComponente)
       .where(
         and(
@@ -273,8 +260,7 @@ export class SyllabusRepository {
 
   // ---------- ACTITUDES (silabo_competencia_componente.grupo='ACT') ----------
   async listAttitudes(syllabusId: number) {
-    const db = getDbOrThrow();
-    return db
+    return this.db
       .select()
       .from(silaboCompetenciaComponente)
       .where(
@@ -287,9 +273,8 @@ export class SyllabusRepository {
   }
 
   async insertAttitudes(syllabusId: number, items: CreateItem[]) {
-    const db = getDbOrThrow();
     for (const it of items) {
-      await db.insert(silaboCompetenciaComponente).values({
+      await this.db.insert(silaboCompetenciaComponente).values({
         silaboId: syllabusId,
         grupo: GROUP_ACT,
         descripcion: it.text,
@@ -301,8 +286,7 @@ export class SyllabusRepository {
   }
 
   async deleteAttitude(syllabusId: number, id: number) {
-    const db = getDbOrThrow();
-    const res = await db
+    const res = await this.db
       .delete(silaboCompetenciaComponente)
       .where(
         and(
@@ -314,8 +298,7 @@ export class SyllabusRepository {
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
   }
   async getStateById(id: number) {
-    const db = getDbOrThrow();
-    const result = await db
+    const result = await this.db
       .select({
         estadoRevision: silabo.estadoRevision,
       })
@@ -326,8 +309,7 @@ export class SyllabusRepository {
   }
 
   async updateReviewStatus(id: number, estadoRevision: string) {
-    const db = getDbOrThrow();
-    await db
+    await this.db
       .update(silabo)
       .set({
         estadoRevision,
@@ -343,8 +325,7 @@ export class SyllabusRepository {
     resultadoProgramaDescripcion?: string;
     aporteValor: "" | "K" | "R";
   }) {
-    const db = getDbOrThrow();
-    const result = await db
+    const result = await this.db
       .insert(schema.silaboAporteResultadoPrograma)
       .values({
         silaboId: data.syllabusId,
@@ -355,6 +336,182 @@ export class SyllabusRepository {
       .returning();
 
     return result[0];
+  }
+
+  // ---------- OBTENER SÍLABO COMPLETO ----------
+  async getCompleteSyllabus(id: number) {
+    // 1. Datos Generales - Verificar que el sílabo existe
+    const datosGenerales = await this.findGeneralDataById(id);
+
+    // Si no existe el sílabo, retornar null para que el service maneje el error
+    if (!datosGenerales) {
+      return null;
+    }
+
+    // 2. Sumilla
+    const sumillaResult = await this.db
+      .select({ contenido: silaboSumilla.contenido })
+      .from(silaboSumilla)
+      .where(
+        and(eq(silaboSumilla.silaboId, id), eq(silaboSumilla.esActual, true)),
+      )
+      .limit(1);
+
+    // 3. Competencias del Curso
+    const competencias = await this.db
+      .select({
+        id: silaboCompetenciaCurso.id,
+        codigo: silaboCompetenciaCurso.codigo,
+        descripcion: silaboCompetenciaCurso.descripcion,
+        orden: silaboCompetenciaCurso.orden,
+      })
+      .from(silaboCompetenciaCurso)
+      .where(eq(silaboCompetenciaCurso.silaboId, id))
+      .orderBy(silaboCompetenciaCurso.orden);
+
+    // 4. Componentes de Competencias (Conceptuales, Procedimentales, Actitudinales)
+    const componentesConceptuales = await this.db
+      .select()
+      .from(silaboCompetenciaComponente)
+      .where(
+        and(
+          eq(silaboCompetenciaComponente.silaboId, id),
+          eq(silaboCompetenciaComponente.grupo, "COMP"),
+        ),
+      )
+      .orderBy(silaboCompetenciaComponente.orden);
+
+    const componentesProcedimentales = await this.db
+      .select()
+      .from(silaboCompetenciaComponente)
+      .where(
+        and(
+          eq(silaboCompetenciaComponente.silaboId, id),
+          eq(silaboCompetenciaComponente.grupo, "PROC"),
+        ),
+      )
+      .orderBy(silaboCompetenciaComponente.orden);
+
+    const componentesActitudinales = await this.db
+      .select()
+      .from(silaboCompetenciaComponente)
+      .where(
+        and(
+          eq(silaboCompetenciaComponente.silaboId, id),
+          eq(silaboCompetenciaComponente.grupo, "ACT"),
+        ),
+      )
+      .orderBy(silaboCompetenciaComponente.orden);
+
+    // 5. Resultados de Aprendizaje
+    const resultadosAprendizaje = await this.db
+      .select()
+      .from(schema.silaboResultadoAprendizaje)
+      .where(eq(schema.silaboResultadoAprendizaje.silaboId, id))
+      .orderBy(schema.silaboResultadoAprendizaje.orden);
+
+    // 6. Unidades Didácticas
+    const unidades = await this.db
+      .select()
+      .from(schema.silaboUnidad)
+      .where(eq(schema.silaboUnidad.silaboId, id))
+      .orderBy(schema.silaboUnidad.numero);
+
+    // 7. Estrategias Metodológicas (del silabo principal)
+    const estrategiasResult = await this.db
+      .select({ estrategias: silabo.estrategiasMetodologicas })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
+    // 8. Recursos Didácticos
+    const recursos = await this.db
+      .select({
+        id: schema.silaboRecursoDidactico.id,
+        recursoId: schema.silaboRecursoDidactico.recursoId,
+        recursoNombre: schema.recursoDidacticoCatalogo.nombre,
+        destino: schema.silaboRecursoDidactico.destino,
+        observaciones: schema.silaboRecursoDidactico.observaciones,
+      })
+      .from(schema.silaboRecursoDidactico)
+      .innerJoin(
+        schema.recursoDidacticoCatalogo,
+        eq(
+          schema.silaboRecursoDidactico.recursoId,
+          schema.recursoDidacticoCatalogo.id,
+        ),
+      )
+      .where(eq(schema.silaboRecursoDidactico.silaboId, id));
+
+    // 9. Plan de Evaluación
+    const planEvaluacion = await this.db
+      .select()
+      .from(schema.planEvaluacionOferta)
+      .where(eq(schema.planEvaluacionOferta.silaboId, id))
+      .orderBy(schema.planEvaluacionOferta.semana);
+
+    // Formula de Evaluación
+    const formulaEvaluacion = await this.db
+      .select({
+        expresion: schema.formulaEvaluacionRegla.expresionFinal,
+      })
+      .from(schema.formulaEvaluacionRegla)
+      .where(
+        and(
+          eq(schema.formulaEvaluacionRegla.silaboId, id),
+          eq(schema.formulaEvaluacionRegla.activo, true),
+        ),
+      )
+      .limit(1);
+
+    // 10. Fuentes de Información
+    const fuentes = await this.db
+      .select({
+        id: schema.silaboFuente.id,
+        tipo: schema.silaboFuente.tipo,
+        autores: schema.silaboFuente.autores,
+        anio: schema.silaboFuente.anio,
+        titulo: schema.silaboFuente.titulo,
+        editorial: schema.silaboFuente.editorialRevista,
+        ciudad: schema.silaboFuente.ciudad,
+        isbn: schema.silaboFuente.isbnIssn,
+        url: schema.silaboFuente.doiUrl,
+      })
+      .from(schema.silaboFuente)
+      .where(eq(schema.silaboFuente.silaboId, id));
+
+    // 11. Aportes a Resultados del Programa
+    const aportes = await this.db
+      .select({
+        resultadoCodigo:
+          schema.silaboAporteResultadoPrograma.resultadoProgramaCodigo,
+        resultadoDescripcion:
+          schema.silaboAporteResultadoPrograma.resultadoProgramaDescripcion,
+        aporteValor: schema.silaboAporteResultadoPrograma.aporteValor,
+      })
+      .from(schema.silaboAporteResultadoPrograma)
+      .where(eq(schema.silaboAporteResultadoPrograma.silaboId, id));
+
+    return {
+      datosGenerales: {
+        ...datosGenerales,
+        areaCurricular: null, // Si no está en DB, null
+      },
+      sumilla: sumillaResult[0]?.contenido || null,
+      competenciasCurso: competencias,
+      componentesConceptuales,
+      componentesProcedimentales,
+      componentesActitudinales,
+      resultadosAprendizaje,
+      unidadesDidacticas: unidades,
+      estrategiasMetodologicas: estrategiasResult[0]?.estrategias || null,
+      recursosDidacticos: recursos,
+      evaluacionAprendizaje: {
+        planEvaluacion,
+        formulaEvaluacion: formulaEvaluacion[0]?.expresion || null,
+      },
+      fuentes,
+      aportesResultadosPrograma: aportes,
+    };
   }
 }
 
