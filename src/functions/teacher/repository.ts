@@ -1,22 +1,66 @@
 import { getDb } from "../../db";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
 
-export class DocenteRepository {
-  /** Obtiene el perfil de un docente por su ID */
-  async findByDocenteId(docenteId: number) {
-    const db = (await getDb()) as any;
-    if (!db) {
+export class TeacherRepository {
+  private db: NodePgDatabase<typeof schema>;
+
+  constructor() {
+    const database = getDb();
+    if (!database) {
       throw new AppError(
         "DatabaseError",
         "INTERNAL_SERVER_ERROR",
         "Database not connected",
       );
     }
+    this.db = database as unknown as NodePgDatabase<typeof schema>;
+  }
 
-    const rows = await db
+  /** Lista todos los docentes activos con sus categorías */
+  async findAll() {
+    const rows = await this.db
       .select({
+        id: schema.docente.id,
+        nombre: schema.docente.nombreDocente,
+        correo: schema.docente.correo,
+        gradoCatalogo: schema.gradoAcademicoCatalogo.nombre,
+        gradoTexto: schema.docente.gradoAcademico,
+        categoria: schema.categoriaUsuario.nombreCategoria,
+        categoriaId: schema.categoriaUsuario.id,
+        activo: schema.docente.activo,
+        ultimoAcceso: schema.docente.ultimoAccesoEn,
+      })
+      .from(schema.docente)
+      .leftJoin(
+        schema.gradoAcademicoCatalogo,
+        eq(schema.docente.gradoAcademicoId, schema.gradoAcademicoCatalogo.id),
+      )
+      .leftJoin(
+        schema.categoriaUsuario,
+        eq(schema.docente.categoriaUsuarioId, schema.categoriaUsuario.id),
+      )
+      .where(eq(schema.docente.activo, true));
+
+    return rows.map((r: any) => ({
+      id: r.id,
+      nombre: r.nombre ?? null,
+      correo: r.correo,
+      grado: r.gradoTexto ?? r.gradoCatalogo ?? null,
+      categoria: r.categoria ?? null,
+      categoriaId: r.categoriaId,
+      activo: r.activo ?? true,
+      ultimoAcceso: r.ultimoAcceso ?? null,
+    }));
+  }
+
+  /** Obtiene el perfil de un docente por su ID */
+  async findById(docenteId: number) {
+    const rows = await this.db
+      .select({
+        id: schema.docente.id,
         nombre: schema.docente.nombreDocente,
         correo: schema.docente.correo,
         gradoCatalogo: schema.gradoAcademicoCatalogo.nombre,
@@ -34,6 +78,7 @@ export class DocenteRepository {
     if (!r) return null;
 
     return {
+      id: r.id,
       nombre: r.nombre ?? null,
       correo: r.correo ?? null,
       grado: r.gradoTexto ?? r.gradoCatalogo ?? null,
@@ -52,15 +97,6 @@ export class DocenteRepository {
       correo?: string;
     },
   ) {
-    const db = (await getDb()) as any;
-    if (!db) {
-      throw new AppError(
-        "DatabaseError",
-        "INTERNAL_SERVER_ERROR",
-        "Database not connected",
-      );
-    }
-
     // Usa el tipo inferido del insert/update para no equivocarte con los nombres.
     const setObj: Partial<typeof schema.docente.$inferInsert> = {};
 
@@ -86,15 +122,15 @@ export class DocenteRepository {
       setObj.gradoAcademicoId === undefined &&
       setObj.correo === undefined
     ) {
-      return this.findByDocenteId(docenteId);
+      return this.findById(docenteId);
     }
 
-    await db
+    await this.db
       .update(schema.docente)
       .set(setObj)
       .where(eq(schema.docente.id, docenteId));
 
-    const after = await db
+    const after = await this.db
       .select({
         nombre: schema.docente.nombreDocente,
         correo: schema.docente.correo,
@@ -122,4 +158,4 @@ export class DocenteRepository {
   }
 }
 
-export const docenteRepository = new DocenteRepository();
+export const teacherRepository = new TeacherRepository();

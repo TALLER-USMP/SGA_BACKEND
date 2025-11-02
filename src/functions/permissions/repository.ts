@@ -18,18 +18,20 @@ type CreateItem = { text: string; order?: number | null; code?: string | null };
 const GROUP_COMP = "COMP";
 const GROUP_ACT = "ACT";
 
-function getDbOrThrow(): NodePgDatabase<typeof schema> {
-  const db = getDb() as unknown;
-  if (!db)
-    throw new AppError(
-      "DbConnectionError",
-      "INTERNAL_SERVER_ERROR",
-      "DB no inicializada",
-    );
-  return db as NodePgDatabase<typeof schema>;
-}
-
 export class PermissionsRepository {
+  private db: NodePgDatabase<typeof schema>;
+
+  constructor() {
+    const database = getDb();
+    if (!database) {
+      throw new AppError(
+        "DbConnectionError",
+        "INTERNAL_SERVER_ERROR",
+        "DB no inicializada",
+      );
+    }
+    this.db = database as unknown as NodePgDatabase<typeof schema>;
+  }
   // async findAllPermissions() {
   //   // const db = getDbOrThrow();
   //   const permissions = [
@@ -83,8 +85,7 @@ export class PermissionsRepository {
   //   return permissions;
   // }
   async findDocenteById(docenteId: number) {
-    const db = getDbOrThrow();
-    const result = await db
+    const result = await this.db
       .select()
       .from(docente)
       .where(eq(docente.id, docenteId));
@@ -96,10 +97,8 @@ export class PermissionsRepository {
     docenteId: number,
     permisos: any[],
   ) {
-    const db = getDbOrThrow();
-
     // Eliminar permisos previos del mismo docente/sílabo
-    await db
+    await this.db
       .delete(silaboSeccionPermiso)
       .where(
         and(
@@ -114,7 +113,7 @@ export class PermissionsRepository {
     fechaLimite.setDate(fechaActual.getDate() + 20);
 
     // Insertar nuevos permisos
-    const insertados = await db
+    const insertados = await this.db
       .insert(silaboSeccionPermiso)
       .values(
         permisos.map((p) => ({
@@ -132,8 +131,7 @@ export class PermissionsRepository {
     return insertados;
   }
   async findPermissionsByDocenteId(docenteId: number) {
-    const db = getDbOrThrow();
-    const result = await db
+    const result = await this.db
       .select({ numeroSeccion: silaboSeccionPermiso.numeroSeccion })
       .from(silaboSeccionPermiso)
       .where(eq(silaboSeccionPermiso.docenteId, docenteId));
