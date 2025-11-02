@@ -20,6 +20,16 @@ export const silaboListItemSchema = z.object({
 });
 export type SilaboListItem = z.infer<typeof silaboListItemSchema>;
 
+// Schema para lista simple de cursos (solo id, código y nombre)
+export const courseSimpleSchema = z.object({
+  id: z.number().int().positive(),
+  code: z.string().nullable(),
+  name: z.string().nullable(),
+  ciclo: z.string().nullable(),
+  escuela: z.string().nullable(),
+});
+export type CourseSimple = z.infer<typeof courseSimpleSchema>;
+
 // Schema para validar query params del GET
 export const listQueryParamsSchema = z.object({
   codigo: z.string().optional(),

@@ -3,10 +3,10 @@
  * Estos roles deben coincidir con los IDs en la tabla categoria_usuario
  */
 export const USER_ROLES = {
-  ADMIN: 1,
-  COORDINADOR: 2,
-  DOCENTE: 3,
-  // Agrega más roles según tu base de datos
+  DOCENTE: 1,
+  INDETERMINADO: 2,
+  COORDINADOR: 3,
+  ADMIN: 4,
 } as const;
 
 /**

@@ -6,11 +6,16 @@ import type {
   CreateAssignmentRequest,
   SilaboFilters,
   SilaboListItem,
+  CourseSimple,
 } from "./types";
 
 class AssignmentsService {
   async list(filters: SilaboFilters): Promise<SilaboListItem[]> {
     return await assignmentsRepository.getAll(filters);
+  }
+
+  async getAllCourses(): Promise<CourseSimple[]> {
+    return await assignmentsRepository.getAllCourses();
   }
 
   async create(assignmentPayload: CreateAssignmentRequest) {
