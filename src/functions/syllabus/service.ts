@@ -250,6 +250,47 @@ export class SyllabusService {
     return { message: "Sumilla registrada correctamente" };
   }
 
+  async getEstrategiasMetodologicas(id: number) {
+    return await syllabusRepository.getEstrategiasMetodologicas(id);
+  }
+
+  async getRecursosDidacticosNotas(id: number) {
+    return await syllabusRepository.getRecursosDidacticosNotas(id);
+  }
+
+  async getFormulaEvaluacion(id: number) {
+    const formula = await syllabusRepository.getFormulaEvaluacion(id);
+    return formula;
+  }
+
+  async putEstrategiasMetodologicas(id: number, estrategias: string) {
+    return await syllabusRepository.putEstrategiasMetodologicas(
+      id,
+      estrategias,
+    );
+  }
+
+  async putRecursosDidacticosNotas(id: number, recursos: string) {
+    return await syllabusRepository.putRecursosDidacticosNotas(id, recursos);
+  }
+
+  async postEstrategiasMetodologicas(body: {
+    estrategias_metodologicas: string;
+  }) {
+    const { estrategias_metodologicas } = body;
+    return syllabusRepository.postEstrategiasMetodologicas(
+      estrategias_metodologicas,
+    );
+  }
+
+  async postRecursosDidacticosNotas(body: {
+    recursos_didacticos_notas: string;
+  }) {
+    const { recursos_didacticos_notas } = body;
+    return syllabusRepository.postRecursosDidacticosNotas(
+      recursos_didacticos_notas,
+    );
+  }
   async updateRevisionStatus(id: number, payload: unknown) {
     // Validar payload con Zod
     const schema = z.object({
