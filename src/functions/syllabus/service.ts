@@ -309,6 +309,118 @@ export class SyllabusService {
 
     return result;
   }
+
+  // ---------- REVISIÓN ----------
+  async getAllCoursesInRevision(estado?: string, docenteId?: number) {
+    const result = await syllabusRepository.findAllSyllabusInRevision(
+      estado,
+      docenteId,
+    );
+    return result;
+  }
+
+  async getSyllabusRevisionById(id: number) {
+    const result = await syllabusRepository.findSyllabusRevisionById(id);
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return result;
+  }
+
+  async approveSyllabus(id: number, data: any) {
+    // Verificar que el sílabo existe
+    const syllabus = await syllabusRepository.findById(id);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+
+    // Actualizar estado a APROBADO
+    const result = await syllabusRepository.updateSyllabusStatus(id, {
+      estadoRevision: "APROBADO",
+      observaciones: data.observaciones || null,
+      actualizadoPorDocenteId: data.docenteId || null,
+    });
+
+    return result;
+  }
+
+  async disapproveSyllabus(id: number, data: any) {
+    // Verificar que el sílabo existe
+    const syllabus = await syllabusRepository.findById(id);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+
+    // Validar que se proporcionen observaciones
+    if (!data.observaciones || data.observaciones.trim() === "") {
+      throw new AppError(
+        "BadRequest",
+        "BAD_REQUEST",
+        "Las observaciones son requeridas para desaprobar un sílabo",
+      );
+    }
+
+    // Actualizar estado a DESAPROBADO
+    const result = await syllabusRepository.updateSyllabusStatus(id, {
+      estadoRevision: "DESAPROBADO",
+      observaciones: data.observaciones,
+      actualizadoPorDocenteId: data.docenteId || null,
+    });
+
+    return result;
+  }
+
+  // ---------- DATOS DE REVISIÓN ----------
+  async getRevisionData(id: number) {
+    // Verificar que el sílabo existe
+    const syllabus = await syllabusRepository.findById(id);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+
+    // Obtener datos de revisión por secciones
+    const revisionData = await syllabusRepository.findRevisionSections(id);
+
+    return {
+      silaboId: id,
+      secciones: revisionData,
+      totalSecciones: revisionData.length,
+      seccionesRevisadas: revisionData.filter((s) => s.estado === "REVISADO")
+        .length,
+      seccionesPendientes: revisionData.filter((s) => s.estado === "PENDIENTE")
+        .length,
+    };
+  }
+
+  async saveRevisionData(id: number, data: any) {
+    // Verificar que el sílabo existe
+    const syllabus = await syllabusRepository.findById(id);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+
+    // Validar que se proporcionen secciones
+    if (!data.secciones || !Array.isArray(data.secciones)) {
+      throw new AppError(
+        "BadRequest",
+        "BAD_REQUEST",
+        "Se requiere un array de secciones",
+      );
+    }
+
+    // Guardar o actualizar cada sección
+    const results = await syllabusRepository.upsertRevisionSections(
+      id,
+      data.secciones,
+      data.docenteId,
+    );
+
+    return {
+      silaboId: id,
+      seccionesGuardadas: results.length,
+      secciones: results,
+    };
+  }
 }
 
 export const syllabusService = new SyllabusService();
