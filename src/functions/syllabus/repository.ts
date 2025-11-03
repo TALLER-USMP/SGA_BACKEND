@@ -9,6 +9,7 @@ import {
   docente,
   silaboSumilla,
   silaboRevisionSeccion,
+  silaboSeccionPermiso,
 } from "../../../drizzle/schema";
 import { AppError } from "../../error";
 import { z } from "zod";
@@ -570,6 +571,15 @@ export class SyllabusRepository extends BaseRepository {
       .limit(1);
 
     return result[0] || null;
+  }
+  async findSectionPermissions(silaboId: number) {
+    const result = await this.db
+      .select({
+        seccion: silaboSeccionPermiso.numeroSeccion,
+      })
+      .from(silaboSeccionPermiso)
+      .where(eq(silaboSeccionPermiso.silaboId, silaboId));
+    return result;
   }
 
   async updateSyllabusStatus(

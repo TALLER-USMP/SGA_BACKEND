@@ -335,7 +335,6 @@ export class SyllabusController implements Updatable {
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
     const result = await syllabusService.getSyllabusRevisionById(id);
-
     return {
       status: STATUS_CODES.OK,
       jsonBody: {

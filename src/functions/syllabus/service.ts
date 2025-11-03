@@ -320,11 +320,14 @@ export class SyllabusService {
   }
 
   async getSyllabusRevisionById(id: number) {
-    const result = await syllabusRepository.findSyllabusRevisionById(id);
-    if (!result) {
+    const permissions = await syllabusRepository.findSectionPermissions(id);
+    if (!permissions) {
       throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
     }
-    return result;
+
+    return {
+      permissions: permissions,
+    };
   }
 
   async approveSyllabus(id: number, data: any) {
