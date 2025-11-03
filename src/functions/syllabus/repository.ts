@@ -765,7 +765,7 @@ export class SyllabusRepository extends BaseRepository {
       description: v.nombre,
     }));
 
-    // 5️⃣ Estructura final de subfórmulas con name detectado automáticamente
+    // Estructura final de subfórmulas con name detectado automáticamente
     const subformulasSimplified = subformulas.map((sf) => {
       // Extraer la variable antes del "=" (ej: "PPR = (P1 + P2) / 2")
       const variableMatch = sf.expresion.split("=")[0].trim();
@@ -816,36 +816,6 @@ export class SyllabusRepository extends BaseRepository {
       .returning({ id: schema.silabo.id });
 
     return result[0] ?? null;
-  }
-
-  // Actualizar formula evaluación regla por ID
-  async updateFormulaEvaluacionRegla(
-    id: number,
-    data: {
-      nombre_regla?: string;
-      variable_final_codigo?: string;
-      expresion_final?: string;
-      descripcion?: string;
-    },
-  ) {
-    const db = getDb();
-    if (!db) throw new Error("No se pudo conectar a la base de datos");
-
-    const [updated] = await db
-      .update(schema.formulaEvaluacionRegla)
-      .set({
-        ...(data.nombre_regla && { nombreRegla: data.nombre_regla }),
-        ...(data.variable_final_codigo && {
-          variableFinalCodigo: data.variable_final_codigo,
-        }),
-        ...(data.expresion_final && { expresionFinal: data.expresion_final }),
-        ...(data.descripcion && { descripcion: data.descripcion }),
-        updatedAt: sql`now()`, // usa SQL para evitar conflicto de tipos
-      })
-      .where(eq(schema.formulaEvaluacionRegla.id, id))
-      .returning();
-
-    return updated || null;
   }
 
   // Crear estrategias metodológicas

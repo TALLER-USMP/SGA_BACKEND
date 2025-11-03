@@ -274,22 +274,6 @@ export class SyllabusService {
     return await syllabusRepository.putRecursosDidacticosNotas(id, recursos);
   }
 
-  async updateFormulaEvaluacionRegla(
-    id: number,
-    data: {
-      nombre_regla?: string;
-      variable_final_codigo?: string;
-      expresion_final?: string;
-      descripcion?: string;
-    },
-  ) {
-    const updated = await syllabusRepository.updateFormulaEvaluacionRegla(
-      id,
-      data,
-    );
-    return updated;
-  }
-
   async postEstrategiasMetodologicas(body: {
     estrategias_metodologicas: string;
   }) {
