@@ -112,6 +112,7 @@ class AssignmentsRepository extends BaseRepository {
           name: silabo.cursoNombre,
           ciclo: silabo.ciclo,
           escuela: silabo.escuelaProfesional,
+          estadoRevision: silabo.estadoRevision,
         })
         .from(silabo)
         .orderBy(asc(silabo.cursoCodigo));
@@ -122,6 +123,7 @@ class AssignmentsRepository extends BaseRepository {
         name: r.name ?? null,
         ciclo: r.ciclo ?? null,
         escuela: r.escuela ?? null,
+        estadoRevision: r.estadoRevision ?? null,
       }));
     } catch (error) {
       if (error instanceof AppError) {
