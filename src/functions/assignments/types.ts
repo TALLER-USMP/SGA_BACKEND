@@ -17,6 +17,9 @@ export const silaboListItemSchema = z.object({
   estadoRevision: z.string().nullable(),
   syllabusId: z.number().int().positive(),
   docenteId: z.number().int().positive().nullable(),
+  nombreDocente: z.string().nullable(),
+  docenteEmail: z.string().nullable(),
+  areaCurricular: z.string().nullable(),
 });
 export type SilaboListItem = z.infer<typeof silaboListItemSchema>;
 

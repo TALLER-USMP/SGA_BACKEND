@@ -49,6 +49,7 @@ class AssignmentsRepository extends BaseRepository {
           syllabusId: silabo.id,
           docenteId: silaboDocente.docenteId,
           nombreDocente: docente.nombreDocente,
+          docenteEmail: docente.correo,
           areaCurricular: silabo.areaCurricular,
         })
         .from(silabo)
@@ -72,6 +73,7 @@ class AssignmentsRepository extends BaseRepository {
         syllabusId: r.syllabusId,
         docenteId: r.docenteId ?? null,
         nombreDocente: r.nombreDocente ?? null,
+        docenteEmail: r.docenteEmail ?? null,
         areaCurricular: r.areaCurricular ?? null,
       }));
     } catch (error) {
