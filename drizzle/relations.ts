@@ -6,25 +6,24 @@ import {
   categoriaUsuario,
   gradoAcademicoCatalogo,
   silaboDocente,
-  silaboSumilla,
-  silaboUnidad,
-  silaboResultadoAprendizaje,
-  silaboFuente,
+  formulaEvaluacionRegla,
+  formulaEvaluacionSubformula,
+  formulaEvaluacionVariable,
+  formulaEvaluacionVariablePlan,
+  planEvaluacionOferta,
+  silaboCompetenciaComponente,
   silaboCompetenciaCurso,
+  silaboFuente,
+  auditEvent,
+  evaluacionAprendizaje,
   recursoDidacticoCatalogo,
   silaboRecursoDidactico,
-  silaboCompetenciaComponente,
-  planEvaluacionOferta,
-  formulaEvaluacionRegla,
-  formulaEvaluacionVariable,
-  formulaEvaluacionSubformula,
-  formulaEvaluacionVariablePlan,
-  auditEvent,
-  silaboRevisionSeccion,
-  formulaEvaluacionBase,
-  evaluacionAprendizaje,
+  silaboUnidad,
+  silaboResultadoAprendizaje,
   silaboRevisionComentario,
+  silaboRevisionSeccion,
   silaboRevisionHistorial,
+  silaboSumilla,
   categoriaFuncion,
   funcionAplicacion,
   silaboAporteResultadoPrograma,
@@ -65,9 +64,9 @@ export const docenteRelations = relations(docente, ({ one, many }) => ({
     relationName: "silabo_creadoPorDocenteId_docente_id",
   }),
   auditEvents: many(auditEvent),
-  silaboRevisionSeccions: many(silaboRevisionSeccion),
   silaboRevisionComentarios: many(silaboRevisionComentario),
   silaboRevisionHistorials: many(silaboRevisionHistorial),
+  silaboRevisionSeccions: many(silaboRevisionSeccion),
 }));
 
 export const silaboRelations = relations(silabo, ({ one, many }) => ({
@@ -88,19 +87,19 @@ export const silaboRelations = relations(silabo, ({ one, many }) => ({
     references: [docente.id],
     relationName: "silabo_creadoPorDocenteId_docente_id",
   }),
-  silaboSumillas: many(silaboSumilla),
-  silaboUnidads: many(silaboUnidad),
-  silaboResultadoAprendizajes: many(silaboResultadoAprendizaje),
-  silaboFuentes: many(silaboFuente),
-  silaboCompetenciaCursos: many(silaboCompetenciaCurso),
-  silaboRecursoDidacticos: many(silaboRecursoDidactico),
-  silaboCompetenciaComponentes: many(silaboCompetenciaComponente),
   planEvaluacionOfertas: many(planEvaluacionOferta),
+  silaboCompetenciaComponentes: many(silaboCompetenciaComponente),
+  silaboCompetenciaCursos: many(silaboCompetenciaCurso),
+  silaboFuentes: many(silaboFuente),
   formulaEvaluacionReglas: many(formulaEvaluacionRegla),
   auditEvents: many(auditEvent),
-  silaboRevisionSeccions: many(silaboRevisionSeccion),
   evaluacionAprendizajes: many(evaluacionAprendizaje),
+  silaboRecursoDidacticos: many(silaboRecursoDidactico),
+  silaboResultadoAprendizajes: many(silaboResultadoAprendizaje),
   silaboRevisionHistorials: many(silaboRevisionHistorial),
+  silaboRevisionSeccions: many(silaboRevisionSeccion),
+  silaboSumillas: many(silaboSumilla),
+  silaboUnidads: many(silaboUnidad),
   silaboAporteResultadoProgramas: many(silaboAporteResultadoPrograma),
 }));
 
@@ -130,29 +129,80 @@ export const silaboDocenteRelations = relations(silaboDocente, ({ one }) => ({
   }),
 }));
 
-export const silaboSumillaRelations = relations(silaboSumilla, ({ one }) => ({
-  silabo: one(silabo, {
-    fields: [silaboSumilla.silaboId],
-    references: [silabo.id],
-  }),
-}));
-
-export const silaboUnidadRelations = relations(
-  silaboUnidad,
-  ({ one, many }) => ({
-    silabo: one(silabo, {
-      fields: [silaboUnidad.silaboId],
-      references: [silabo.id],
+export const formulaEvaluacionSubformulaRelations = relations(
+  formulaEvaluacionSubformula,
+  ({ one }) => ({
+    formulaEvaluacionRegla: one(formulaEvaluacionRegla, {
+      fields: [formulaEvaluacionSubformula.formulaEvaluacionReglaId],
+      references: [formulaEvaluacionRegla.id],
     }),
-    silaboRecursoDidacticos: many(silaboRecursoDidactico),
   }),
 );
 
-export const silaboResultadoAprendizajeRelations = relations(
-  silaboResultadoAprendizaje,
+export const formulaEvaluacionReglaRelations = relations(
+  formulaEvaluacionRegla,
+  ({ one, many }) => ({
+    formulaEvaluacionSubformulas: many(formulaEvaluacionSubformula),
+    formulaEvaluacionVariables: many(formulaEvaluacionVariable),
+    formulaEvaluacionVariablePlans: many(formulaEvaluacionVariablePlan),
+    silabo: one(silabo, {
+      fields: [formulaEvaluacionRegla.silaboId],
+      references: [silabo.id],
+    }),
+    evaluacionAprendizajes: many(evaluacionAprendizaje),
+  }),
+);
+
+export const formulaEvaluacionVariableRelations = relations(
+  formulaEvaluacionVariable,
+  ({ one }) => ({
+    formulaEvaluacionRegla: one(formulaEvaluacionRegla, {
+      fields: [formulaEvaluacionVariable.formulaEvaluacionReglaId],
+      references: [formulaEvaluacionRegla.id],
+    }),
+  }),
+);
+
+export const formulaEvaluacionVariablePlanRelations = relations(
+  formulaEvaluacionVariablePlan,
+  ({ one }) => ({
+    formulaEvaluacionRegla: one(formulaEvaluacionRegla, {
+      fields: [formulaEvaluacionVariablePlan.formulaEvaluacionReglaId],
+      references: [formulaEvaluacionRegla.id],
+    }),
+    planEvaluacionOferta: one(planEvaluacionOferta, {
+      fields: [formulaEvaluacionVariablePlan.planEvaluacionOfertaId],
+      references: [planEvaluacionOferta.id],
+    }),
+  }),
+);
+
+export const planEvaluacionOfertaRelations = relations(
+  planEvaluacionOferta,
+  ({ one, many }) => ({
+    formulaEvaluacionVariablePlans: many(formulaEvaluacionVariablePlan),
+    silabo: one(silabo, {
+      fields: [planEvaluacionOferta.silaboId],
+      references: [silabo.id],
+    }),
+  }),
+);
+
+export const silaboCompetenciaComponenteRelations = relations(
+  silaboCompetenciaComponente,
   ({ one }) => ({
     silabo: one(silabo, {
-      fields: [silaboResultadoAprendizaje.silaboId],
+      fields: [silaboCompetenciaComponente.silaboId],
+      references: [silabo.id],
+    }),
+  }),
+);
+
+export const silaboCompetenciaCursoRelations = relations(
+  silaboCompetenciaCurso,
+  ({ one }) => ({
+    silabo: one(silabo, {
+      fields: [silaboCompetenciaCurso.silaboId],
       references: [silabo.id],
     }),
   }),
@@ -165,11 +215,26 @@ export const silaboFuenteRelations = relations(silaboFuente, ({ one }) => ({
   }),
 }));
 
-export const silaboCompetenciaCursoRelations = relations(
-  silaboCompetenciaCurso,
+export const auditEventRelations = relations(auditEvent, ({ one }) => ({
+  docente: one(docente, {
+    fields: [auditEvent.docenteId],
+    references: [docente.id],
+  }),
+  silabo: one(silabo, {
+    fields: [auditEvent.silaboId],
+    references: [silabo.id],
+  }),
+}));
+
+export const evaluacionAprendizajeRelations = relations(
+  evaluacionAprendizaje,
   ({ one }) => ({
+    formulaEvaluacionRegla: one(formulaEvaluacionRegla, {
+      fields: [evaluacionAprendizaje.formulaReglaId],
+      references: [formulaEvaluacionRegla.id],
+    }),
     silabo: one(silabo, {
-      fields: [silaboCompetenciaCurso.silaboId],
+      fields: [evaluacionAprendizaje.silaboId],
       references: [silabo.id],
     }),
   }),
@@ -200,118 +265,24 @@ export const recursoDidacticoCatalogoRelations = relations(
   }),
 );
 
-export const silaboCompetenciaComponenteRelations = relations(
-  silaboCompetenciaComponente,
-  ({ one }) => ({
-    silabo: one(silabo, {
-      fields: [silaboCompetenciaComponente.silaboId],
-      references: [silabo.id],
-    }),
-  }),
-);
-
-export const planEvaluacionOfertaRelations = relations(
-  planEvaluacionOferta,
+export const silaboUnidadRelations = relations(
+  silaboUnidad,
   ({ one, many }) => ({
+    silaboRecursoDidacticos: many(silaboRecursoDidactico),
     silabo: one(silabo, {
-      fields: [planEvaluacionOferta.silaboId],
-      references: [silabo.id],
-    }),
-    formulaEvaluacionVariablePlans: many(formulaEvaluacionVariablePlan),
-  }),
-);
-
-export const formulaEvaluacionReglaRelations = relations(
-  formulaEvaluacionRegla,
-  ({ one, many }) => ({
-    silabo: one(silabo, {
-      fields: [formulaEvaluacionRegla.silaboId],
-      references: [silabo.id],
-    }),
-    formulaEvaluacionVariables: many(formulaEvaluacionVariable),
-    formulaEvaluacionSubformulas: many(formulaEvaluacionSubformula),
-    formulaEvaluacionVariablePlans: many(formulaEvaluacionVariablePlan),
-  }),
-);
-
-export const formulaEvaluacionVariableRelations = relations(
-  formulaEvaluacionVariable,
-  ({ one }) => ({
-    formulaEvaluacionRegla: one(formulaEvaluacionRegla, {
-      fields: [formulaEvaluacionVariable.formulaEvaluacionReglaId],
-      references: [formulaEvaluacionRegla.id],
-    }),
-  }),
-);
-
-export const formulaEvaluacionSubformulaRelations = relations(
-  formulaEvaluacionSubformula,
-  ({ one }) => ({
-    formulaEvaluacionRegla: one(formulaEvaluacionRegla, {
-      fields: [formulaEvaluacionSubformula.formulaEvaluacionReglaId],
-      references: [formulaEvaluacionRegla.id],
-    }),
-  }),
-);
-
-export const formulaEvaluacionVariablePlanRelations = relations(
-  formulaEvaluacionVariablePlan,
-  ({ one }) => ({
-    formulaEvaluacionRegla: one(formulaEvaluacionRegla, {
-      fields: [formulaEvaluacionVariablePlan.formulaEvaluacionReglaId],
-      references: [formulaEvaluacionRegla.id],
-    }),
-    planEvaluacionOferta: one(planEvaluacionOferta, {
-      fields: [formulaEvaluacionVariablePlan.planEvaluacionOfertaId],
-      references: [planEvaluacionOferta.id],
-    }),
-  }),
-);
-
-export const auditEventRelations = relations(auditEvent, ({ one }) => ({
-  docente: one(docente, {
-    fields: [auditEvent.docenteId],
-    references: [docente.id],
-  }),
-  silabo: one(silabo, {
-    fields: [auditEvent.silaboId],
-    references: [silabo.id],
-  }),
-}));
-
-export const silaboRevisionSeccionRelations = relations(
-  silaboRevisionSeccion,
-  ({ one, many }) => ({
-    docente: one(docente, {
-      fields: [silaboRevisionSeccion.revisadoPor],
-      references: [docente.id],
-    }),
-    silabo: one(silabo, {
-      fields: [silaboRevisionSeccion.silaboId],
-      references: [silabo.id],
-    }),
-    silaboRevisionComentarios: many(silaboRevisionComentario),
-  }),
-);
-
-export const evaluacionAprendizajeRelations = relations(
-  evaluacionAprendizaje,
-  ({ one }) => ({
-    formulaEvaluacionBase: one(formulaEvaluacionBase, {
-      fields: [evaluacionAprendizaje.formulaBaseId],
-      references: [formulaEvaluacionBase.id],
-    }),
-    silabo: one(silabo, {
-      fields: [evaluacionAprendizaje.silaboId],
+      fields: [silaboUnidad.silaboId],
       references: [silabo.id],
     }),
   }),
 );
 
-export const formulaEvaluacionBaseRelations = relations(
-  formulaEvaluacionBase,
-  ({ many }) => ({
-    evaluacionAprendizajes: many(evaluacionAprendizaje),
+export const silaboResultadoAprendizajeRelations = relations(
+  silaboResultadoAprendizaje,
+  ({ one }) => ({
+    silabo: one(silabo, {
+      fields: [silaboResultadoAprendizaje.silaboId],
+      references: [silabo.id],
+    }),
   }),
 );
 
@@ -329,6 +300,21 @@ export const silaboRevisionComentarioRelations = relations(
   }),
 );
 
+export const silaboRevisionSeccionRelations = relations(
+  silaboRevisionSeccion,
+  ({ one, many }) => ({
+    silaboRevisionComentarios: many(silaboRevisionComentario),
+    docente: one(docente, {
+      fields: [silaboRevisionSeccion.revisadoPor],
+      references: [docente.id],
+    }),
+    silabo: one(silabo, {
+      fields: [silaboRevisionSeccion.silaboId],
+      references: [silabo.id],
+    }),
+  }),
+);
+
 export const silaboRevisionHistorialRelations = relations(
   silaboRevisionHistorial,
   ({ one }) => ({
@@ -342,6 +328,13 @@ export const silaboRevisionHistorialRelations = relations(
     }),
   }),
 );
+
+export const silaboSumillaRelations = relations(silaboSumilla, ({ one }) => ({
+  silabo: one(silabo, {
+    fields: [silaboSumilla.silaboId],
+    references: [silabo.id],
+  }),
+}));
 
 export const categoriaFuncionRelations = relations(
   categoriaFuncion,

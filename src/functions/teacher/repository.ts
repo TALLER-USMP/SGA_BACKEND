@@ -63,6 +63,7 @@ export class TeacherRepository {
         id: schema.docente.id,
         nombre: schema.docente.nombreDocente,
         correo: schema.docente.correo,
+        telefono: schema.docente.numeroCelular,
         gradoCatalogo: schema.gradoAcademicoCatalogo.nombre,
         gradoTexto: schema.docente.gradoAcademico,
       })
@@ -81,6 +82,7 @@ export class TeacherRepository {
       id: r.id,
       nombre: r.nombre ?? null,
       correo: r.correo ?? null,
+      telefono: r.telefono ?? null,
       grado: r.gradoTexto ?? r.gradoCatalogo ?? null,
       apellido: null,
       bachiller: null,
@@ -95,6 +97,7 @@ export class TeacherRepository {
       gradoAcademicoId?: number;
       grado?: string;
       correo?: string;
+      telefono?: string;
     },
   ) {
     // Usa el tipo inferido del insert/update para no equivocarte con los nombres.
@@ -116,11 +119,17 @@ export class TeacherRepository {
     if (data.correo !== undefined) {
       setObj.correo = data.correo;
     }
+
+    if (data.telefono !== undefined) {
+      setObj.numeroCelular = data.telefono; // columna: numero_celular
+    }
+
     if (
       setObj.nombreDocente === undefined &&
       setObj.gradoAcademico === undefined &&
       setObj.gradoAcademicoId === undefined &&
-      setObj.correo === undefined
+      setObj.correo === undefined &&
+      setObj.numeroCelular === undefined
     ) {
       return this.findById(docenteId);
     }
@@ -134,6 +143,7 @@ export class TeacherRepository {
       .select({
         nombre: schema.docente.nombreDocente,
         correo: schema.docente.correo,
+        telefono: schema.docente.numeroCelular,
         gradoCatalogo: schema.gradoAcademicoCatalogo.nombre,
         gradoTexto: schema.docente.gradoAcademico,
       })
@@ -151,6 +161,7 @@ export class TeacherRepository {
     return {
       nombre: r.nombre ?? null,
       correo: r.correo ?? null,
+      telefono: r.telefono ?? null,
       grado: r.gradoTexto ?? r.gradoCatalogo ?? null,
       apellido: null,
       bachiller: null,
