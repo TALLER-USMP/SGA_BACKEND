@@ -27,6 +27,7 @@ export const courseSimpleSchema = z.object({
   name: z.string().nullable(),
   ciclo: z.string().nullable(),
   escuela: z.string().nullable(),
+  estadoRevision: z.string().nullable(),
 });
 export type CourseSimple = z.infer<typeof courseSimpleSchema>;
 
