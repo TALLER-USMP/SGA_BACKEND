@@ -158,3 +158,157 @@ export const ContributionCreateSchema = z.object({
 });
 
 export type ContributionCreateType = z.infer<typeof ContributionCreateSchema>;
+
+// =====================================================
+// 🔹 RESPUESTA COMPLETA DEL SÍLABO
+// =====================================================
+export const CompleteSyllabusResponseSchema = z.object({
+  // I. DATOS GENERALES
+  datosGenerales: z.object({
+    departamentoAcademico: z.string().nullable(),
+    escuelaProfesional: z.string().nullable(),
+    programaAcademico: z.string().nullable(),
+    semestreAcademico: z.string().nullable(),
+    areaCurricular: z.string().nullable(),
+    codigoAsignatura: z.string().nullable(),
+    nombreAsignatura: z.string().nullable(),
+    tipoAsignatura: z.string().nullable(),
+    tipoEstudios: z.string().nullable(),
+    modalidad: z.string().nullable(),
+    ciclo: z.string().nullable(),
+    requisitos: z.string().nullable(),
+    docentes: z.string().nullable(),
+
+    // Horas
+    horasTeoria: z.number().nullable(),
+    horasPractica: z.number().nullable(),
+    horasLaboratorio: z.number().nullable(),
+    horasTotales: z.number().nullable(),
+
+    // Créditos
+    creditosTeoria: z.number().nullable(),
+    creditosPractica: z.number().nullable(),
+    creditosTotales: z.number().nullable(),
+  }),
+
+  // II. SUMILLA
+  sumilla: z.string().nullable(),
+
+  // III. COMPETENCIAS DEL CURSO
+  competenciasCurso: z.array(
+    z.object({
+      id: z.number(),
+      codigo: z.string().nullable(),
+      descripcion: z.string(),
+      orden: z.number().nullable(),
+    }),
+  ),
+
+  // IV. COMPONENTES DE COMPETENCIAS
+  componentesConceptuales: z.array(
+    z.object({
+      id: z.number(),
+      codigo: z.string().nullable(),
+      descripcion: z.string(),
+      orden: z.number().nullable(),
+    }),
+  ),
+
+  componentesProcedimentales: z.array(
+    z.object({
+      id: z.number(),
+      codigo: z.string().nullable(),
+      descripcion: z.string(),
+      orden: z.number().nullable(),
+    }),
+  ),
+
+  componentesActitudinales: z.array(
+    z.object({
+      id: z.number(),
+      codigo: z.string().nullable(),
+      descripcion: z.string(),
+      orden: z.number().nullable(),
+    }),
+  ),
+
+  // V. RESULTADOS DE APRENDIZAJE
+  resultadosAprendizaje: z.array(
+    z.object({
+      id: z.number(),
+      descripcion: z.string(),
+      orden: z.number().nullable(),
+    }),
+  ),
+
+  // VI. UNIDADES DIDÁCTICAS
+  unidadesDidacticas: z.array(
+    z.object({
+      id: z.number(),
+      numero: z.number(),
+      titulo: z.string(),
+      semanaInicio: z.number().nullable(),
+      semanaFin: z.number().nullable(),
+      contenidosConceptuales: z.string().nullable(),
+      contenidosProcedimentales: z.string().nullable(),
+      actividadesAprendizaje: z.string().nullable(),
+      horasLectivasTeoria: z.number().nullable(),
+      horasLectivasPractica: z.number().nullable(),
+    }),
+  ),
+
+  // VII. ESTRATEGIAS METODOLÓGICAS
+  estrategiasMetodologicas: z.string().nullable(),
+
+  // VIII. RECURSOS DIDÁCTICOS
+  recursosDidacticos: z.array(
+    z.object({
+      id: z.number(),
+      recursoNombre: z.string(),
+      destino: z.string().nullable(),
+      observaciones: z.string().nullable(),
+    }),
+  ),
+
+  // IX. EVALUACIÓN DEL APRENDIZAJE
+  evaluacionAprendizaje: z.object({
+    planEvaluacion: z.array(
+      z.object({
+        id: z.number(),
+        componenteNombre: z.string(),
+        instrumentoNombre: z.string().nullable(),
+        semana: z.number().nullable(),
+        fecha: z.string().nullable(),
+      }),
+    ),
+    formulaEvaluacion: z.string().nullable(),
+  }),
+
+  // X. FUENTES DE INFORMACIÓN
+  fuentes: z.array(
+    z.object({
+      id: z.number(),
+      tipo: z.string(),
+      autores: z.string().nullable(),
+      anio: z.number().nullable(),
+      titulo: z.string().nullable(),
+      editorial: z.string().nullable(),
+      ciudad: z.string().nullable(),
+      isbn: z.string().nullable(),
+      url: z.string().nullable(),
+    }),
+  ),
+
+  // APORTE A RESULTADOS DEL PROGRAMA
+  aportesResultadosPrograma: z.array(
+    z.object({
+      resultadoCodigo: z.string(),
+      resultadoDescripcion: z.string().nullable(),
+      aporteValor: z.string().nullable(),
+    }),
+  ),
+});
+
+export type CompleteSyllabusResponse = z.infer<
+  typeof CompleteSyllabusResponseSchema
+>;

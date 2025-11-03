@@ -4,6 +4,7 @@ export const TeacherProfileOutSchema = z.object({
   nombre: z.string().nullable(),
   grado: z.string().nullable(),
   correo: z.string().email().nullable(),
+  telefono: z.string().nullable(),
   apellido: z.string().nullable().optional(),
   bachiller: z.string().nullable().optional(),
 });
@@ -14,5 +15,28 @@ export const TeacherProfileUpdateSchema = z.object({
   gradoAcademicoId: z.number().int().positive().optional(), // FK al catálogo
   grado: z.string().min(1).max(100).optional(), //  docente.grado_academico
   correo: z.string().email().optional(), // docente.correo
+  telefono: z
+    .string()
+    .regex(/^9[0-9]{8}$/, "El teléfono debe tener 9 dígitos y empezar con 9")
+    .optional(), // docente.numero_celular
 });
 export type TeacherProfileUpdate = z.infer<typeof TeacherProfileUpdateSchema>;
+
+// Schema para el listado de profesores
+export const TeacherListItemSchema = z.object({
+  id: z.number().int().positive(),
+  nombre: z.string().nullable(),
+  correo: z.string().email(),
+  grado: z.string().nullable(),
+  categoria: z.string().nullable(),
+  categoriaId: z.number().int().positive(),
+  activo: z.boolean(),
+  ultimoAcceso: z.string().nullable(),
+});
+export type TeacherListItem = z.infer<typeof TeacherListItemSchema>;
+
+export const TeacherListResponseSchema = z.object({
+  items: z.array(TeacherListItemSchema),
+  total: z.number().int().nonnegative(),
+});
+export type TeacherListResponse = z.infer<typeof TeacherListResponseSchema>;

@@ -1,58 +1,29 @@
-import {
-  HttpRequest,
-  HttpResponseInit,
-  InvocationContext,
-} from "@azure/functions";
+import { HttpRequest, HttpResponseInit } from "@azure/functions";
 import { controller, route } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
-import { Listable, Readable } from "../../types";
+import { Listable } from "../../types";
 import { assignmentsService } from "./service";
-import { listQueryParamsSchema } from "./types";
-import { AppError } from "../../error";
+import { createAssignmentRequestSchema, listQueryParamsSchema } from "./types";
 
 @controller("assignments")
 export class AssignmentsController implements Listable {
-  /**
-   * Ejemplos:
-   * http://localhost:7071/api/assignments/?codigo=TEST101
-   * http://localhost:7071/api/assignments/?nombre=Taller de Proyectos
-   * http://localhost:7071/api/assignments/?idDocente=3
-   */
   @route("/", "GET")
-  async list(
-    req: HttpRequest,
-    context: InvocationContext,
-  ): Promise<HttpResponseInit> {
+  async list(req: HttpRequest): Promise<HttpResponseInit> {
     const codigo = req.query.get("codigo")?.trim() || undefined;
     const nombre = req.query.get("nombre")?.trim() || undefined;
     const idSilaboParam = req.query.get("idSilabo")?.trim() || undefined;
     const idDocenteParam = req.query.get("idDocente")?.trim() || undefined;
+    const areaCurricular = req.query.get("areaCurricular")?.trim() || undefined;
 
-    const validation = listQueryParamsSchema.safeParse({
+    const filters = listQueryParamsSchema.parse({
       codigo,
       nombre,
       idSilabo: idSilaboParam,
       idDocente: idDocenteParam,
+      areaCurricular: areaCurricular,
     });
 
-    if (!validation.success) {
-      throw new AppError(
-        "ValidationError",
-        "BAD_REQUEST",
-        "Parámetros de consulta inválidos",
-        validation.error.issues,
-      );
-    }
-
-    const filters = validation.data;
-
-    // Llamar al servicio
-    const items = await assignmentsService.list({
-      codigo: filters.codigo,
-      nombre: filters.nombre,
-      idSilabo: filters.idSilabo,
-      idDocente: filters.idDocente,
-    });
+    const items = await assignmentsService.list(filters);
 
     return {
       status: STATUS_CODES.OK,
@@ -60,6 +31,35 @@ export class AssignmentsController implements Listable {
       jsonBody: {
         message: "Listado de sílabos obtenido correctamente.",
         data: items,
+      },
+    };
+  }
+
+  @route("/courses", "GET")
+  async getAllCourses(req: HttpRequest): Promise<HttpResponseInit> {
+    const courses = await assignmentsService.getAllCourses();
+
+    return {
+      status: STATUS_CODES.OK,
+      headers: { "Content-Type": "application/json" },
+      jsonBody: {
+        success: true,
+        message: "Lista de cursos obtenida correctamente.",
+        data: courses,
+      },
+    };
+  }
+
+  @route("/", "POST")
+  async createAssignment(req: HttpRequest) {
+    const body = await req.json();
+    const parsedBody = createAssignmentRequestSchema.parse(body);
+    await assignmentsService.create(parsedBody);
+    return {
+      status: STATUS_CODES.OK,
+      headers: { "Content-Type": "application/json" },
+      jsonBody: {
+        message: "Asignación creada correctamente.",
       },
     };
   }

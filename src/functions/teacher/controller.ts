@@ -1,24 +1,36 @@
 import {
   HttpRequest,
-  InvocationContext,
   HttpResponseInit,
+  InvocationContext,
 } from "@azure/functions";
-import { Readable, Updatable } from "../../types";
-import { controller, route } from "../../lib/decorators";
-import { teacherService } from "./service";
 import { AppError } from "../../error";
+import { controller, route, requireRole } from "../../lib/decorators";
 import { STATUS_CODES } from "../../status-codes";
+import { Listable, Readable, Updatable } from "../../types";
+import { teacherService } from "./service";
 
-@controller("docente")
-export class TeacherController implements Readable, Updatable {
-  /** GET /api/docente/{docenteId} */
-  @route("/{docenteId}", "GET")
-  async getOne(
-    req: HttpRequest,
-    _ctx: InvocationContext,
-  ): Promise<HttpResponseInit> {
-    const { docenteId } = (req.params ?? {}) as { docenteId?: string };
-    const id = Number(docenteId);
+@controller("teacher")
+export class TeacherController implements Listable, Readable, Updatable {
+  /** GET /api/teacher - Lista todos los profesores (requiere rol de administrador o coordinador) */
+  @route("/", "GET")
+  async list(req: HttpRequest): Promise<HttpResponseInit> {
+    const data = await teacherService.listTeachers();
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Lista de profesores obtenida correctamente",
+        data: data.items,
+        total: data.total,
+      },
+    };
+  }
+
+  /** GET /api/teacher/{teacherId} */
+  @route("/{teacherId}", "GET")
+  async getOne(req: HttpRequest): Promise<HttpResponseInit> {
+    const { teacherId } = (req.params ?? {}) as { teacherId?: string };
+    const id = Number(teacherId);
 
     if (!Number.isFinite(id) || id <= 0) {
       throw new AppError(
@@ -32,20 +44,17 @@ export class TeacherController implements Readable, Updatable {
     return { status: STATUS_CODES.OK, jsonBody: { success: true, data } };
   }
 
-  /** PUT /api/docente/{docenteId} */
-  @route("/{docenteId}", "PUT")
-  async update(
-    req: HttpRequest,
-    _ctx: InvocationContext,
-  ): Promise<HttpResponseInit> {
-    const { docenteId } = (req.params ?? {}) as { docenteId?: string };
-    const id = Number(docenteId);
+  /** PUT /api/teacher/{teacherId} */
+  @route("/{teacherId}", "PUT")
+  async update(req: HttpRequest): Promise<HttpResponseInit> {
+    const { teacherId } = (req.params ?? {}) as { teacherId?: string };
+    const id = Number(teacherId);
 
     if (!Number.isFinite(id) || id <= 0) {
       throw new AppError(
         "BadRequest",
         "BAD_REQUEST",
-        "Debe especificar un docenteId válido en la ruta.",
+        "Debe especificar un teacherId válido en la ruta.",
       );
     }
 
