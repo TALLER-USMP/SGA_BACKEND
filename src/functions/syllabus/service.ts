@@ -258,30 +258,9 @@ export class SyllabusService {
     return await syllabusRepository.getRecursosDidacticosNotas(id);
   }
 
-  async getEvaluacion(id: number) {
-    const result = await syllabusRepository.getEvaluacion(id);
-    if (!result) return null;
-
-    const { regla, subformula } = result;
-
-    // 🧩 Concatenar la fórmula principal + variables
-    const formulas: string[] = [];
-
-    // Fórmula principal
-    formulas.push(`${regla.variableFinalCodigo} = ${regla.expresionFinal}`);
-
-    // Fórmulas secundarias
-    for (const v of subformula) {
-      formulas.push(`${v.variableCodigo} = ${v.expresion}`);
-    }
-
-    // Unir con salto de línea
-    const formulaConcatenada = formulas.join("\n");
-
-    return {
-      id: regla.id,
-      formula: formulaConcatenada,
-    };
+  async getFormulaEvaluacion(id: number) {
+    const formula = await syllabusRepository.getFormulaEvaluacion(id);
+    return formula;
   }
 
   async putEstrategiasMetodologicas(id: number, estrategias: string) {
