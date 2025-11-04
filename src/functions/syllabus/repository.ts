@@ -585,8 +585,8 @@ export class SyllabusRepository extends BaseRepository {
     id: number,
     data: {
       estadoRevision: string;
-      observaciones?: string | null;
-      actualizadoPorDocenteId?: number | null;
+      // observaciones?: string | null;
+      //actualizadoPorDocenteId?: number | null;
     },
   ) {
     const updateData: any = {
@@ -594,13 +594,13 @@ export class SyllabusRepository extends BaseRepository {
       updatedAt: new Date().toISOString(),
     };
 
-    if (data.observaciones !== undefined) {
-      updateData.observaciones = data.observaciones;
-    }
+    // if (data.observaciones !== undefined) {
+    //   updateData.observaciones = data.observaciones;
+    // }
 
-    if (data.actualizadoPorDocenteId !== undefined) {
-      updateData.actualizadoPorDocenteId = data.actualizadoPorDocenteId;
-    }
+    // if (data.actualizadoPorDocenteId !== undefined) {
+    //   updateData.actualizadoPorDocenteId = data.actualizadoPorDocenteId;
+    // }
 
     const result = await this.db
       .update(silabo)

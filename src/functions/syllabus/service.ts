@@ -381,8 +381,8 @@ export class SyllabusService {
     // Actualizar estado a APROBADO
     const result = await syllabusRepository.updateSyllabusStatus(id, {
       estadoRevision: "APROBADO",
-      observaciones: data.observaciones || null,
-      actualizadoPorDocenteId: data.docenteId || null,
+      // observaciones: data.observaciones || null,
+      // actualizadoPorDocenteId: data.docenteId || null,
     });
 
     return result;
@@ -407,8 +407,8 @@ export class SyllabusService {
     // Actualizar estado a DESAPROBADO
     const result = await syllabusRepository.updateSyllabusStatus(id, {
       estadoRevision: "DESAPROBADO",
-      observaciones: data.observaciones,
-      actualizadoPorDocenteId: data.docenteId || null,
+      // observaciones: data.observaciones,
+      // actualizadoPorDocenteId: data.docenteId || null,
     });
 
     return result;
