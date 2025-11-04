@@ -520,15 +520,19 @@ export class SyllabusRepository extends BaseRepository {
     let query = this.db
       .select({
         id: silabo.id,
-        code: silabo.cursoCodigo,
-        name: silabo.cursoNombre,
-        ciclo: silabo.ciclo,
-        escuela: silabo.escuelaProfesional,
+        cursoNombre: silabo.cursoNombre,
+        cursoCodigo: silabo.cursoCodigo,
+        departamentoAcademico: silabo.departamentoAcademico,
+        escuelaProfesional: silabo.escuelaProfesional,
         estadoRevision: silabo.estadoRevision,
+        asignadoADocenteId: docente.id,
+        nombreDocente: docente.nombreDocente,
+        createdAt: silabo.createdAt,
+        updatedAt: silabo.updatedAt,
       })
-
       .from(silabo)
-      .leftJoin(docente, eq(silabo.asignadoADocenteId, docente.id));
+      .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId))
+      .innerJoin(docente, eq(silaboDocente.docenteId, docente.id));
 
     // Aplicar filtros si existen
     const conditions = [];
@@ -545,12 +549,12 @@ export class SyllabusRepository extends BaseRepository {
 
     const result = await query.orderBy(silabo.updatedAt);
     return result.map((r) => ({
-      id: r.id,
-      code: r.code ?? null,
-      name: r.name ?? null,
-      ciclo: r.ciclo ?? null,
-      escuela: r.escuela ?? null,
+      cursoCodigo: r.cursoCodigo ?? null,
+      cursoNombre: r.cursoNombre ?? null,
       estadoRevision: r.estadoRevision ?? null,
+      syllabusId: r.id,
+      docenteId: r.asignadoADocenteId ?? null,
+      nombreDocente: r.nombreDocente ?? null,
     }));
   }
 
