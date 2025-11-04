@@ -286,6 +286,25 @@ export class SyllabusController implements Updatable {
   }
 
   /**
+   * PUT /api/syllabus/{syllabusId}/competencies
+   * Actualizar/sincronizar competencias del curso
+   * Body: { items: [{ id?: number, text: string, code?: string, order?: number }] }
+   * - Si el item tiene id: se actualiza
+   * - Si el item NO tiene id: se crea
+   * - Los items que no están en la lista: se eliminan
+   */
+  @route("/{syllabusId}/competencies", "PUT")
+  async updateCompetencies(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const { syllabusId } = req.params as { syllabusId: string };
+    const body = await req.json();
+    const res = await syllabusService.updateCompetencies(syllabusId, body);
+    return { status: 200, jsonBody: res };
+  }
+
+  /**
    * DELETE /api/syllabus/{syllabusId}/competencies/{id}
    * Eliminar una competencia
    */
@@ -302,6 +321,12 @@ export class SyllabusController implements Updatable {
   /**
    * GET /api/syllabus/{syllabusId}/components
    * Listar componentes/capacidades
+   * Query params: ?grupo=COMP (opcional, para filtrar por grupo específico)
+   *
+   * Retorna:
+   * - items: todos los items (competencias + actitudinales)
+   * - competencias: solo items con código de más de 1 letra
+   * - actitudinales: solo items con código de 1 letra
    */
   @route("/{syllabusId}/components", "GET")
   async listComponents(
@@ -309,8 +334,26 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const { syllabusId } = req.params as { syllabusId: string };
-    const items = await syllabusService.getComponents(syllabusId);
-    return { status: 200, jsonBody: { items } };
+    const grupo = req.query.get("grupo") || undefined;
+    const result = await syllabusService.getComponents(syllabusId, grupo);
+
+    return {
+      status: 200,
+      jsonBody: {
+        success: true,
+        message: grupo
+          ? `Componentes con grupo='${grupo}' obtenidos correctamente`
+          : "Componentes y contenidos actitudinales obtenidos correctamente",
+        data: {
+          items: result.items,
+          competencias: result.competencias,
+          actitudinales: result.actitudinales,
+        },
+        total: result.total,
+        totalCompetencias: result.totalCompetencias,
+        totalActitudinales: result.totalActitudinales,
+      },
+    };
   }
 
   /**
@@ -326,6 +369,25 @@ export class SyllabusController implements Updatable {
     const body = await req.json();
     const res = await syllabusService.createComponents(syllabusId, body);
     return { status: 201, jsonBody: res };
+  }
+
+  /**
+   * PUT /api/syllabus/{syllabusId}/components
+   * Actualizar/sincronizar componentes/capacidades
+   * Body: { items: [{ id?: number, text: string, code?: string, order?: number, grupo?: string }] }
+   * - Si el item tiene id: se actualiza
+   * - Si el item NO tiene id: se crea
+   * - Los items que no están en la lista: se eliminan
+   */
+  @route("/{syllabusId}/components", "PUT")
+  async updateComponents(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const { syllabusId } = req.params as { syllabusId: string };
+    const body = await req.json();
+    const res = await syllabusService.updateComponents(syllabusId, body);
+    return { status: 200, jsonBody: res };
   }
 
   /**
@@ -369,6 +431,25 @@ export class SyllabusController implements Updatable {
     const body = await req.json();
     const res = await syllabusService.createAttitudes(syllabusId, body);
     return { status: 201, jsonBody: res };
+  }
+
+  /**
+   * PUT /api/syllabus/{syllabusId}/attitudes
+   * Actualizar/sincronizar actitudes
+   * Body: { items: [{ id?: number, text: string, code?: string, order?: number }] }
+   * - Si el item tiene id: se actualiza
+   * - Si el item NO tiene id: se crea
+   * - Los items que no están en la lista: se eliminan
+   */
+  @route("/{syllabusId}/attitudes", "PUT")
+  async updateAttitudes(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const { syllabusId } = req.params as { syllabusId: string };
+    const body = await req.json();
+    const res = await syllabusService.updateAttitudes(syllabusId, body);
+    return { status: 200, jsonBody: res };
   }
 
   /**
