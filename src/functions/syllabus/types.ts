@@ -1,5 +1,5 @@
 // types.ts
-import { z } from "zod";
+import { boolean, int, z } from "zod";
 
 //---------------------------
 export const SyllabusCreateSchema = z.object({
@@ -378,6 +378,18 @@ export const DatosGeneralesUpdateSchema = z.object({
   horasLaboratorio: z.number().int().nonnegative().optional(),
   horasTotales: z.number().int().nonnegative().optional(),
   creditosTotales: z.number().int().nonnegative().optional(),
+});
+
+export const DesaprobarSilabo = z.object({
+  silaboId: z.number().int().positive(),
+  observaciones: z.array(
+    z.object({
+      numeroSeccion: int(),
+      nombreSeccion: z.string(),
+      comentario: z.string(),
+      estado: z.enum(["APROBADO", "DESAPROBADO"]).optional(), // Opcional porque usamos valor fijo en backend
+    }),
+  ),
 });
 
 export type DatosGeneralesUpdate = z.infer<typeof DatosGeneralesUpdateSchema>;

@@ -8,6 +8,7 @@ import {
   UnidadCreate,
   UnidadUpdate,
   DatosGeneralesUpdate,
+  DesaprobarSilabo,
 } from "./types";
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
@@ -475,23 +476,15 @@ export class SyllabusService {
       throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
     }
 
-    // Validar que se proporcionen observaciones
-    if (!data.observaciones || data.observaciones.trim() === "") {
-      throw new AppError(
-        "BadRequest",
-        "BAD_REQUEST",
-        "Las observaciones son requeridas para desaprobar un sílabo",
-      );
+    // Validar con el esquema DesaprobarSilabo
+    const parsed = DesaprobarSilabo.safeParse(data);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
     }
-
-    // Actualizar estado a DESAPROBADO
-    const result = await syllabusRepository.updateSyllabusStatus(id, {
-      estadoRevision: "DESAPROBADO",
-      observaciones: data.observaciones,
-      actualizadoPorDocenteId: data.docenteId || null,
-    });
-
-    return result;
+    await syllabusRepository.disapproveSyllabus(id, parsed.data);
   }
 
   // ---------- DATOS DE REVISIÓN ----------
@@ -665,10 +658,6 @@ export class SyllabusService {
 
   async aprobar(silaboId: number) {
     return syllabusRepository.aprobarSilabo(silaboId);
-  }
-
-  async desaprobar(silaboId: number, data: any) {
-    return syllabusRepository.desaprobarSilabo(silaboId, data);
   }
 }
 

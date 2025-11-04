@@ -10,11 +10,12 @@ import {
   docente,
   silaboSumilla,
   silaboRevisionSeccion,
+  silaboRevisionComentario,
   silaboSeccionPermiso,
 } from "../../../drizzle/schema";
 import { AppError } from "../../error";
 import { z } from "zod";
-import { SyllabusCreateSchema } from "./types";
+import { SyllabusCreateSchema, DesaprobarSilabo } from "./types";
 import { BaseRepository } from "../../lib/repository";
 
 //1
@@ -549,12 +550,16 @@ export class SyllabusRepository extends BaseRepository {
 
     const result = await query.orderBy(silabo.updatedAt);
     return result.map((r) => ({
+      id: r.id,
       cursoCodigo: r.cursoCodigo ?? null,
       cursoNombre: r.cursoNombre ?? null,
       estadoRevision: r.estadoRevision ?? null,
+      silaboId: r.id,
       syllabusId: r.id,
       docenteId: r.asignadoADocenteId ?? null,
       nombreDocente: r.nombreDocente ?? null,
+      createdAt: r.createdAt ?? null,
+      updatedAt: r.updatedAt ?? null,
     }));
   }
 
@@ -621,6 +626,56 @@ export class SyllabusRepository extends BaseRepository {
       .returning();
 
     return result[0];
+  }
+  async disapproveSyllabus(id: number, data: z.infer<typeof DesaprobarSilabo>) {
+    // Primero, eliminar todas las secciones de revisión existentes para este sílabo
+    await this.db
+      .delete(silaboRevisionSeccion)
+      .where(eq(silaboRevisionSeccion.silaboId, id));
+
+    // Insertar secciones de revisión y sus comentarios asociados
+    const obs = data.observaciones || [];
+
+    for (const r of obs) {
+      // Insertar la sección de revisión y obtener su id
+      const insertedSection = await this.db
+        .insert(silaboRevisionSeccion)
+        .values({
+          silaboId: id,
+          numeroSeccion: r.numeroSeccion,
+          nombreSeccion: r.nombreSeccion,
+          estado: "RECHAZADO", // Estado de la sección específica (no del sílabo global)
+          revisadoPor: null,
+          revisadoEn: new Date().toISOString(),
+          comentariosCount: 0,
+        })
+        .returning({ id: silaboRevisionSeccion.id });
+
+      const revisionSeccionId = insertedSection[0]?.id;
+
+      // Insertar el comentario asociado a la sección (usar el campo 'comentario' del schema)
+      await this.db.insert(silaboRevisionComentario).values({
+        silaboRevisionSeccionId: revisionSeccionId,
+        autorId: null,
+        mensaje: r.comentario,
+        creadoEn: new Date().toISOString(),
+      });
+    }
+
+    // Actualizar estado del sílabo a DESAPROBADO
+    const updateData = {
+      estadoRevision: "DESAPROBADO",
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Ejecutar la actualización en la tabla silabo y retornar el registro actualizado
+    const updated = await this.db
+      .update(silabo)
+      .set(updateData)
+      .where(eq(silabo.id, id))
+      .returning();
+
+    return updated[0] || null;
   }
 
   // ---------- REVISIÓN DE SECCIONES ----------
@@ -1095,19 +1150,6 @@ export class SyllabusRepository extends BaseRepository {
       .update(silabo)
       .set({
         estadoRevision: "APROBADO",
-      })
-      .where(eq(silabo.id, silaboId))
-      .returning();
-
-    return result[0] || null;
-  }
-
-  async desaprobarSilabo(silaboId: number, data: any) {
-    const result = await this.db
-      .update(silabo)
-      .set({
-        estadoRevision: "DESAPROBADO",
-        observaciones: data.observaciones || null,
       })
       .where(eq(silabo.id, silaboId))
       .returning();
