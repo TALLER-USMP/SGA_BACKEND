@@ -11,10 +11,10 @@ export const TeacherProfileOutSchema = z.object({
 export type TeacherProfileOut = z.infer<typeof TeacherProfileOutSchema>;
 
 export const TeacherProfileUpdateSchema = z.object({
-  nombre: z.string().min(1).max(100).optional(), // docente.nombre_docente
+  nombre: z.string().max(100).optional(), // docente.nombre_docente
   gradoAcademicoId: z.number().int().positive().optional(), // FK al catálogo
-  grado: z.string().min(1).max(100).optional(), //  docente.grado_academico
-  correo: z.string().email().optional(), // docente.correo
+  grado: z.string().max(100).optional(), //  docente.grado_academico
+  correo: z.string().optional(), // docente.correo
   telefono: z
     .string()
     .regex(/^9[0-9]{8}$/, "El teléfono debe tener 9 dígitos y empezar con 9")
