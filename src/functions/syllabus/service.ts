@@ -360,8 +360,11 @@ export class SyllabusService {
     return result;
   }
 
-  async getSyllabusRevisionById(id: number) {
-    const permissions = await syllabusRepository.findSectionPermissions(id);
+  async getSyllabusRevisionById(silaboId: number, docenteId?: number) {
+    const permissions = await syllabusRepository.findSectionPermissions(
+      silaboId,
+      docenteId,
+    );
     if (!permissions) {
       throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
     }

@@ -329,13 +329,17 @@ export class SyllabusController implements Updatable {
   }
 
   // GET /api/syllabus/revision/{id}
-  @route("/revision/{id}", "GET")
+  @route("/revision/{silaboId}", "GET")
   async getSyllabusRevisionById(
     req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const id = Number(req.params.id);
-    const result = await syllabusService.getSyllabusRevisionById(id);
+    const silaboId = Number(req.params.silaboId);
+    const docendeId = Number(req.query.get("docenteId"));
+    const result = await syllabusService.getSyllabusRevisionById(
+      silaboId,
+      docendeId,
+    );
     return {
       status: STATUS_CODES.OK,
       jsonBody: {

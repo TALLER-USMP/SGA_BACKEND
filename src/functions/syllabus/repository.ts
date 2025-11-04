@@ -579,13 +579,17 @@ export class SyllabusRepository extends BaseRepository {
 
     return result[0] || null;
   }
-  async findSectionPermissions(silaboId: number) {
+  async findSectionPermissions(silaboId: number, docenteId?: number) {
+    const conditions = [eq(silaboSeccionPermiso.silaboId, silaboId)];
+    if (docenteId !== undefined) {
+      conditions.push(eq(silaboSeccionPermiso.docenteId, docenteId));
+    }
     const result = await this.db
       .select({
         seccion: silaboSeccionPermiso.numeroSeccion,
       })
       .from(silaboSeccionPermiso)
-      .where(eq(silaboSeccionPermiso.silaboId, silaboId));
+      .where(and(...conditions));
     return result;
   }
 
