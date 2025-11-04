@@ -54,13 +54,8 @@ class AssignmentsRepository extends BaseRepository {
         })
         .from(silabo)
         .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId))
-        .innerJoin(docente, eq(silaboDocente.docenteId, docente.id));
-
-      if (conditions.length > 0) {
-        query.where(
-          conditions.length === 1 ? conditions[0] : and(...conditions),
-        );
-      }
+        .innerJoin(docente, eq(silaboDocente.docenteId, docente.id))
+        .where(and(...(conditions.length > 0 ? conditions : [])));
 
       query.orderBy(asc(silabo.cursoCodigo));
 
@@ -106,7 +101,7 @@ class AssignmentsRepository extends BaseRepository {
   async getAllCourses(): Promise<CourseSimple[]> {
     try {
       const result = await this.db
-        .select({
+        .selectDistinct({
           id: silabo.id,
           code: silabo.cursoCodigo,
           name: silabo.cursoNombre,
@@ -115,6 +110,8 @@ class AssignmentsRepository extends BaseRepository {
           estadoRevision: silabo.estadoRevision,
         })
         .from(silabo)
+        .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId))
+        .innerJoin(docente, eq(silaboDocente.docenteId, docente.id))
         .orderBy(asc(silabo.cursoCodigo));
 
       return result.map((r) => ({
