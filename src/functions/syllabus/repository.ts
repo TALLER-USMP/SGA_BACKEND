@@ -10,11 +10,12 @@ import {
   docente,
   silaboSumilla,
   silaboRevisionSeccion,
+  silaboRevisionComentario,
   silaboSeccionPermiso,
 } from "../../../drizzle/schema";
 import { AppError } from "../../error";
 import { z } from "zod";
-import { SyllabusCreateSchema } from "./types";
+import { SyllabusCreateSchema, DesaprobarSilabo } from "./types";
 import { BaseRepository } from "../../lib/repository";
 
 //1
@@ -622,6 +623,42 @@ export class SyllabusRepository extends BaseRepository {
 
     return result[0];
   }
+  async disapproveSyllabus(id: number, data: z.infer<typeof DesaprobarSilabo>) {
+    // Insertar secciones de revisión y sus comentarios asociados
+    const obs = data.observaciones || [];
+
+    for (const r of obs) {
+      // Insertar la sección de revisión y obtener su id
+      const insertedSection = await this.db
+        .insert(silaboRevisionSeccion)
+        .values({
+          silaboId: id,
+          numeroSeccion: r.numeroSeccion,
+          nombreSeccion: r.nombreSeccion,
+          estado: r.estado,
+          revisadoPor: null,
+          revisadoEn: new Date().toISOString(),
+          comentariosCount: 0,
+        })
+        .returning({ id: silaboRevisionSeccion.id });
+
+      const revisionSeccionId = insertedSection[0]?.id;
+
+      // Insertar el comentario asociado a la sección (usar el campo 'comentario' del schema)
+      await this.db.insert(silaboRevisionComentario).values({
+        silaboRevisionSeccionId: revisionSeccionId,
+        autorId: null,
+        mensaje: r.comentario,
+        creadoEn: new Date().toISOString(),
+      });
+    }
+
+    // Actualizar estado del sílabo a DESAPROBADO (si aplica)
+    const updateData = {
+      estadoRevision: "DESAPROBADO",
+      updatedAt: new Date().toISOString(),
+    };
+  }
 
   // ---------- REVISIÓN DE SECCIONES ----------
   async findRevisionSections(silaboId: number) {
@@ -1095,19 +1132,6 @@ export class SyllabusRepository extends BaseRepository {
       .update(silabo)
       .set({
         estadoRevision: "APROBADO",
-      })
-      .where(eq(silabo.id, silaboId))
-      .returning();
-
-    return result[0] || null;
-  }
-
-  async desaprobarSilabo(silaboId: number, data: any) {
-    const result = await this.db
-      .update(silabo)
-      .set({
-        estadoRevision: "DESAPROBADO",
-        observaciones: data.observaciones || null,
       })
       .where(eq(silabo.id, silaboId))
       .returning();
