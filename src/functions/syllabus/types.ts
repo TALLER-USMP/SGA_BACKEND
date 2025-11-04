@@ -97,7 +97,7 @@ export const CreateComponentsSchema = z.object({
         order: OrderSchema,
       }),
     )
-    .min(1, "El campo 'text' es obligatorio"),
+    .default([]),
 });
 export type CreateComponents = z.infer<typeof CreateComponentsSchema>;
 
@@ -112,7 +112,7 @@ export const CreateAttitudesSchema = z.object({
         order: OrderSchema,
       }),
     )
-    .min(1, "items requerido"),
+    .default([]),
 });
 export type CreateAttitudes = z.infer<typeof CreateAttitudesSchema>;
 
@@ -135,7 +135,7 @@ export const UpsertCompetenciesSchema = z
           order: OrderSchema,
         }),
       )
-      .min(1, "Deberias completar el campo 'text' "),
+      .default([]),
   })
   .strict();
 export type UpsertCompetencies = z.infer<typeof UpsertCompetenciesSchema>;

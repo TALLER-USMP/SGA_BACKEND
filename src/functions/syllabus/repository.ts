@@ -207,6 +207,27 @@ export class SyllabusRepository extends BaseRepository {
     return { inserted: items.length };
   }
 
+  async updateCompetency(
+    syllabusId: number | string,
+    id: number | string,
+    data: { text: string; code?: string | null; order?: number | null },
+  ) {
+    const res = await this.db
+      .update(silaboCompetenciaCurso)
+      .set({
+        descripcion: data.text,
+        codigo: data.code ?? null,
+        orden: data.order ?? null,
+      })
+      .where(
+        and(
+          eq(silaboCompetenciaCurso.id, Number(id)),
+          eq(silaboCompetenciaCurso.silaboId, Number(syllabusId)),
+        ),
+      );
+    return { updated: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
+  }
+
   async deleteCompetency(syllabusId: number | string, id: number | string) {
     const res = await this.db
       .delete(silaboCompetenciaCurso)
@@ -219,18 +240,106 @@ export class SyllabusRepository extends BaseRepository {
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
   }
 
-  // ---------- COMPONENTES (silabo_competencia_componente.grupo='COMP') ----------
+  // Método para sincronizar competencias (upsert masivo)
+  async syncCompetencies(
+    syllabusId: number | string,
+    items: Array<{
+      id?: number;
+      text: string;
+      code?: string | null;
+      order?: number | null;
+    }>,
+  ) {
+    const sId = Number(syllabusId);
+
+    // Obtener IDs actuales en la BD
+    const existing = await this.listCompetencies(syllabusId);
+    const existingIds = existing.map((e) => e.id);
+    const incomingIds = items.filter((i) => i.id).map((i) => i.id!);
+
+    // IDs a eliminar (están en BD pero no en la lista nueva)
+    const toDelete = existingIds.filter((id) => !incomingIds.includes(id));
+
+    let created = 0;
+    let updated = 0;
+    let deleted = 0;
+
+    // Eliminar items que ya no están
+    for (const id of toDelete) {
+      await this.deleteCompetency(sId, id);
+      deleted++;
+    }
+
+    // Crear o actualizar items
+    for (const item of items) {
+      if (item.id) {
+        // Actualizar existente
+        await this.updateCompetency(sId, item.id, {
+          text: item.text,
+          code: item.code ?? null,
+          order: item.order ?? null,
+        });
+        updated++;
+      } else {
+        // Crear nuevo
+        await this.db.insert(silaboCompetenciaCurso).values({
+          silaboId: sId,
+          descripcion: item.text,
+          codigo: item.code ?? null,
+          orden: item.order ?? null,
+        });
+        created++;
+      }
+    }
+
+    return { created, updated, deleted };
+  }
+
+  // ---------- COMPONENTES (silabo_competencia_componente) ----------
+  // NOTA: No filtra por grupo por defecto, retorna TODOS los componentes del sílabo
   async listComponents(syllabusId: number) {
-    return this.db
-      .select()
+    const result = await this.db
+      .select({
+        id: silaboCompetenciaComponente.id,
+        silaboId: silaboCompetenciaComponente.silaboId,
+        grupo: silaboCompetenciaComponente.grupo,
+        codigo: silaboCompetenciaComponente.codigo,
+        descripcion: silaboCompetenciaComponente.descripcion,
+        competenciaCodigoRelacionada:
+          silaboCompetenciaComponente.competenciaCodigoRelacionada,
+        orden: silaboCompetenciaComponente.orden,
+      })
       .from(silaboCompetenciaComponente)
-      .where(
-        and(
-          eq(silaboCompetenciaComponente.silaboId, syllabusId),
-          eq(silaboCompetenciaComponente.grupo, GROUP_COMP),
-        ),
-      )
+      .where(eq(silaboCompetenciaComponente.silaboId, syllabusId))
       .orderBy(silaboCompetenciaComponente.orden);
+
+    return result;
+  }
+
+  // Método auxiliar para obtener TODOS los componentes sin filtrar por grupo (para debugging)
+  async listAllComponentsByGrupo(syllabusId: number, grupo?: string) {
+    const conditions = [eq(silaboCompetenciaComponente.silaboId, syllabusId)];
+
+    if (grupo) {
+      conditions.push(eq(silaboCompetenciaComponente.grupo, grupo));
+    }
+
+    const result = await this.db
+      .select({
+        id: silaboCompetenciaComponente.id,
+        silaboId: silaboCompetenciaComponente.silaboId,
+        grupo: silaboCompetenciaComponente.grupo,
+        codigo: silaboCompetenciaComponente.codigo,
+        descripcion: silaboCompetenciaComponente.descripcion,
+        competenciaCodigoRelacionada:
+          silaboCompetenciaComponente.competenciaCodigoRelacionada,
+        orden: silaboCompetenciaComponente.orden,
+      })
+      .from(silaboCompetenciaComponente)
+      .where(and(...conditions))
+      .orderBy(silaboCompetenciaComponente.orden);
+
+    return result;
   }
 
   async insertComponents(syllabusId: number, items: CreateItem[]) {
@@ -246,6 +355,38 @@ export class SyllabusRepository extends BaseRepository {
     return { inserted: items.length };
   }
 
+  async updateComponent(
+    syllabusId: number,
+    id: number,
+    data: {
+      text: string;
+      code?: string | null;
+      order?: number | null;
+      grupo?: string;
+    },
+  ) {
+    const updateData: any = {
+      descripcion: data.text,
+      codigo: data.code ?? null,
+      orden: data.order ?? null,
+    };
+
+    if (data.grupo) {
+      updateData.grupo = data.grupo;
+    }
+
+    const res = await this.db
+      .update(silaboCompetenciaComponente)
+      .set(updateData)
+      .where(
+        and(
+          eq(silaboCompetenciaComponente.id, id),
+          eq(silaboCompetenciaComponente.silaboId, syllabusId),
+        ),
+      );
+    return { updated: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
+  }
+
   async deleteComponent(syllabusId: number, id: number) {
     const res = await this.db
       .delete(silaboCompetenciaComponente)
@@ -253,10 +394,65 @@ export class SyllabusRepository extends BaseRepository {
         and(
           eq(silaboCompetenciaComponente.id, id),
           eq(silaboCompetenciaComponente.silaboId, syllabusId),
-          eq(silaboCompetenciaComponente.grupo, GROUP_COMP),
         ),
       );
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
+  }
+
+  // Método para sincronizar componentes (upsert masivo)
+  async syncComponents(
+    syllabusId: number,
+    items: Array<{
+      id?: number;
+      text: string;
+      code?: string | null;
+      order?: number | null;
+      grupo?: string;
+    }>,
+  ) {
+    // Obtener IDs actuales en la BD (solo grupo COMP)
+    const existing = await this.listComponents(syllabusId);
+    const existingIds = existing.map((e) => e.id);
+    const incomingIds = items.filter((i) => i.id).map((i) => i.id!);
+
+    // IDs a eliminar (están en BD pero no en la lista nueva)
+    const toDelete = existingIds.filter((id) => !incomingIds.includes(id));
+
+    let created = 0;
+    let updated = 0;
+    let deleted = 0;
+
+    // Eliminar items que ya no están
+    for (const id of toDelete) {
+      await this.deleteComponent(syllabusId, id);
+      deleted++;
+    }
+
+    // Crear o actualizar items
+    for (const item of items) {
+      if (item.id) {
+        // Actualizar existente
+        await this.updateComponent(syllabusId, item.id, {
+          text: item.text,
+          code: item.code ?? null,
+          order: item.order ?? null,
+          grupo: item.grupo ?? GROUP_COMP,
+        });
+        updated++;
+      } else {
+        // Crear nuevo
+        await this.db.insert(silaboCompetenciaComponente).values({
+          silaboId: syllabusId,
+          grupo: item.grupo ?? GROUP_COMP,
+          descripcion: item.text,
+          codigo: item.code ?? null,
+          orden: item.order ?? null,
+        });
+        created++;
+      }
+    }
+
+    return { created, updated, deleted };
   }
 
   // ---------- ACTITUDES (silabo_competencia_componente.grupo='ACT') ----------
@@ -286,6 +482,28 @@ export class SyllabusRepository extends BaseRepository {
     return { inserted: items.length };
   }
 
+  async updateAttitude(
+    syllabusId: number,
+    id: number,
+    data: { text: string; code?: string | null; order?: number | null },
+  ) {
+    const res = await this.db
+      .update(silaboCompetenciaComponente)
+      .set({
+        descripcion: data.text,
+        codigo: data.code ?? null,
+        orden: data.order ?? null,
+      })
+      .where(
+        and(
+          eq(silaboCompetenciaComponente.id, id),
+          eq(silaboCompetenciaComponente.silaboId, syllabusId),
+          eq(silaboCompetenciaComponente.grupo, GROUP_ACT),
+        ),
+      );
+    return { updated: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
+  }
+
   async deleteAttitude(syllabusId: number, id: number) {
     const res = await this.db
       .delete(silaboCompetenciaComponente)
@@ -297,6 +515,62 @@ export class SyllabusRepository extends BaseRepository {
         ),
       );
     return { deleted: (res as unknown as { rowCount?: number }).rowCount ?? 0 };
+  }
+
+  // Método para sincronizar actitudes (upsert masivo)
+  async syncAttitudes(
+    syllabusId: number,
+    items: Array<{
+      id?: number;
+      text: string;
+      code?: string | null;
+      order?: number | null;
+    }>,
+  ) {
+    // Obtener IDs actuales en la BD (solo grupo ACT)
+    const existing = await this.listAttitudes(syllabusId);
+    const existingIds = existing.map((e: any) => e.id);
+    const incomingIds = items.filter((i) => i.id).map((i) => i.id!);
+
+    // IDs a eliminar (están en BD pero no en la lista nueva)
+    const toDelete = existingIds.filter(
+      (id: number) => !incomingIds.includes(id),
+    );
+
+    let created = 0;
+    let updated = 0;
+    let deleted = 0;
+
+    // Eliminar items que ya no están
+    for (const id of toDelete) {
+      await this.deleteAttitude(syllabusId, id);
+      deleted++;
+    }
+
+    // Crear o actualizar items
+    for (const item of items) {
+      if (item.id) {
+        // Actualizar existente
+        await this.updateAttitude(syllabusId, item.id, {
+          text: item.text,
+          code: item.code ?? null,
+          order: item.order ?? null,
+        });
+        updated++;
+      } else {
+        // Crear nuevo
+        await this.db.insert(silaboCompetenciaComponente).values({
+          silaboId: syllabusId,
+          grupo: GROUP_ACT,
+          descripcion: item.text,
+          codigo: item.code ?? null,
+          orden: item.order ?? null,
+        });
+        created++;
+      }
+    }
+
+    return { created, updated, deleted };
   }
 
   async getStateById(id: number) {

@@ -1,4 +1,4 @@
-import { SyllabusRepository, syllabusRepository } from "./repository";
+import { syllabusRepository } from "./repository";
 import {
   UpsertCompetenciesSchema,
   CreateComponentsSchema, //
@@ -62,21 +62,91 @@ export class SyllabusService {
     };
   }
 
-  // ---------- COMPONENTES ----------
-  async getComponents(syllabusId: string) {
+  async updateCompetencies(syllabusId: string, body: unknown) {
+    const parsed = UpsertCompetenciesSchema.safeParse(body);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
     const sId = Number(syllabusId);
     if (Number.isNaN(sId)) {
       throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
     }
-    const rows = await syllabusRepository.listComponents(sId);
-    // ideal si el repo ya alias: descripcion->text, codigo->code, orden->order
-    return rows.map((r: any) => ({
-      id: r.id,
-      silaboId: r.silaboId ?? r.silabo_id,
-      text: r.text ?? r.descripcion,
-      order: r.order ?? r.orden ?? null,
-      code: r.code ?? r.codigo ?? null,
+
+    const items = parsed.data.items.map(({ id, text, order, code }) => ({
+      id,
+      text,
+      order: order ?? null,
+      code: code ?? null,
     }));
+
+    const res = await syllabusRepository.syncCompetencies(sId, items);
+    return {
+      ok: true as const,
+      created: res.created,
+      updated: res.updated,
+      deleted: res.deleted,
+      message: `✅ Sincronizado: ${res.created} creados, ${res.updated} actualizados, ${res.deleted} eliminados`,
+    };
+  }
+
+  // ---------- COMPONENTES ----------
+  /**
+   * Determina si un código representa un contenido actitudinal
+   * Regla: Si el código contiene solo letras (sin números ni puntos), es actitudinal
+   * Ejemplos actitudinales: "a", "b", "A", "B"
+   * Ejemplos competencias: "a.1", "a.2", "b.1", "1.b", "4.a", "6.a"
+   */
+  private isAttitudinalCode(code: string | null): boolean {
+    if (!code) return false;
+    const trimmed = code.trim();
+    // Es actitudinal si solo contiene letras (sin números ni puntos)
+    return /^[A-Za-z]+$/.test(trimmed) && trimmed.length <= 2;
+  }
+
+  async getComponents(syllabusId: string, grupo?: string) {
+    const sId = Number(syllabusId);
+    if (Number.isNaN(sId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
+    }
+
+    // Si se especifica un grupo, usar el método con filtro, sino usar el método que lista todos
+    const rows = grupo
+      ? await syllabusRepository.listAllComponentsByGrupo(sId, grupo)
+      : await syllabusRepository.listComponents(sId);
+
+    // Mapear y clasificar los items
+    const mappedItems = rows.map((r) => {
+      const isAttitudinal = this.isAttitudinalCode(r.codigo);
+
+      return {
+        id: r.id,
+        silaboId: r.silaboId,
+        text: r.descripcion,
+        code: r.codigo ?? null,
+        order: r.orden ?? null,
+        grupo: r.grupo,
+        competenciaCodigoRelacionada: r.competenciaCodigoRelacionada ?? null,
+        tipo: isAttitudinal ? "actitudinal" : "competencia",
+        isAttitudinal,
+      };
+    });
+
+    // Separar en dos grupos
+    const competencias = mappedItems.filter((item) => !item.isAttitudinal);
+    const actitudinales = mappedItems.filter((item) => item.isAttitudinal);
+
+    return {
+      items: mappedItems,
+      competencias,
+      actitudinales,
+      total: mappedItems.length,
+      totalCompetencias: competencias.length,
+      totalActitudinales: actitudinales.length,
+    };
   }
 
   async createComponents(syllabusId: string, body: unknown) {
@@ -104,6 +174,40 @@ export class SyllabusService {
       ok: true as const,
       inserted,
       message: "El item se creo con éxito!!",
+    };
+  }
+
+  async updateComponents(syllabusId: string, body: unknown) {
+    const parsed = CreateComponentsSchema.safeParse(body);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
+    const sId = Number(syllabusId);
+    if (Number.isNaN(sId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
+    }
+
+    const items = parsed.data.items.map(
+      ({ id, text, order, code, grupo }: any) => ({
+        id,
+        text,
+        order: order ?? null,
+        code: code ?? null,
+        grupo: grupo ?? undefined,
+      }),
+    );
+
+    const res = await syllabusRepository.syncComponents(sId, items);
+    return {
+      ok: true as const,
+      created: res.created,
+      updated: res.updated,
+      deleted: res.deleted,
+      message: `✅ Sincronizado: ${res.created} creados, ${res.updated} actualizados, ${res.deleted} eliminados`,
     };
   }
 
@@ -197,6 +301,37 @@ export class SyllabusService {
       ok: true as const,
       inserted,
       message: "El item se creo con éxito!!",
+    };
+  }
+
+  async updateAttitudes(syllabusId: string, body: unknown) {
+    const parsed = CreateAttitudesSchema.safeParse(body);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
+    const sId = Number(syllabusId);
+    if (Number.isNaN(sId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
+    }
+
+    const items = parsed.data.items.map(({ id, text, order, code }: any) => ({
+      id,
+      text,
+      order: order ?? null,
+      code: code ?? null,
+    }));
+
+    const res = await syllabusRepository.syncAttitudes(sId, items);
+    return {
+      ok: true as const,
+      created: res.created,
+      updated: res.updated,
+      deleted: res.deleted,
+      message: `✅ Sincronizado: ${res.created} creados, ${res.updated} actualizados, ${res.deleted} eliminados`,
     };
   }
 
