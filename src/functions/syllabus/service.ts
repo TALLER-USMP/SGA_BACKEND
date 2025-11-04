@@ -1,8 +1,14 @@
-import { SyllabusRepository, syllabusRepository } from "./repository";
+import { syllabusRepository } from "./repository";
 import {
   UpsertCompetenciesSchema,
   CreateComponentsSchema, //
   CreateAttitudesSchema, //
+  FuenteCreate,
+  FuenteUpdate,
+  UnidadCreate,
+  UnidadUpdate,
+  DatosGeneralesUpdate,
+  DesaprobarSilabo,
 } from "./types";
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
@@ -56,21 +62,91 @@ export class SyllabusService {
     };
   }
 
-  // ---------- COMPONENTES ----------
-  async getComponents(syllabusId: string) {
+  async updateCompetencies(syllabusId: string, body: unknown) {
+    const parsed = UpsertCompetenciesSchema.safeParse(body);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
     const sId = Number(syllabusId);
     if (Number.isNaN(sId)) {
       throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
     }
-    const rows = await syllabusRepository.listComponents(sId);
-    // ideal si el repo ya alias: descripcion->text, codigo->code, orden->order
-    return rows.map((r: any) => ({
-      id: r.id,
-      silaboId: r.silaboId ?? r.silabo_id,
-      text: r.text ?? r.descripcion,
-      order: r.order ?? r.orden ?? null,
-      code: r.code ?? r.codigo ?? null,
+
+    const items = parsed.data.items.map(({ id, text, order, code }) => ({
+      id,
+      text,
+      order: order ?? null,
+      code: code ?? null,
     }));
+
+    const res = await syllabusRepository.syncCompetencies(sId, items);
+    return {
+      ok: true as const,
+      created: res.created,
+      updated: res.updated,
+      deleted: res.deleted,
+      message: `✅ Sincronizado: ${res.created} creados, ${res.updated} actualizados, ${res.deleted} eliminados`,
+    };
+  }
+
+  // ---------- COMPONENTES ----------
+  /**
+   * Determina si un código representa un contenido actitudinal
+   * Regla: Si el código contiene solo letras (sin números ni puntos), es actitudinal
+   * Ejemplos actitudinales: "a", "b", "A", "B"
+   * Ejemplos competencias: "a.1", "a.2", "b.1", "1.b", "4.a", "6.a"
+   */
+  private isAttitudinalCode(code: string | null): boolean {
+    if (!code) return false;
+    const trimmed = code.trim();
+    // Es actitudinal si solo contiene letras (sin números ni puntos)
+    return /^[A-Za-z]+$/.test(trimmed) && trimmed.length <= 2;
+  }
+
+  async getComponents(syllabusId: string, grupo?: string) {
+    const sId = Number(syllabusId);
+    if (Number.isNaN(sId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
+    }
+
+    // Si se especifica un grupo, usar el método con filtro, sino usar el método que lista todos
+    const rows = grupo
+      ? await syllabusRepository.listAllComponentsByGrupo(sId, grupo)
+      : await syllabusRepository.listComponents(sId);
+
+    // Mapear y clasificar los items
+    const mappedItems = rows.map((r) => {
+      const isAttitudinal = this.isAttitudinalCode(r.codigo);
+
+      return {
+        id: r.id,
+        silaboId: r.silaboId,
+        text: r.descripcion,
+        code: r.codigo ?? null,
+        order: r.orden ?? null,
+        grupo: r.grupo,
+        competenciaCodigoRelacionada: r.competenciaCodigoRelacionada ?? null,
+        tipo: isAttitudinal ? "actitudinal" : "competencia",
+        isAttitudinal,
+      };
+    });
+
+    // Separar en dos grupos
+    const competencias = mappedItems.filter((item) => !item.isAttitudinal);
+    const actitudinales = mappedItems.filter((item) => item.isAttitudinal);
+
+    return {
+      items: mappedItems,
+      competencias,
+      actitudinales,
+      total: mappedItems.length,
+      totalCompetencias: competencias.length,
+      totalActitudinales: actitudinales.length,
+    };
   }
 
   async createComponents(syllabusId: string, body: unknown) {
@@ -98,6 +174,40 @@ export class SyllabusService {
       ok: true as const,
       inserted,
       message: "El item se creo con éxito!!",
+    };
+  }
+
+  async updateComponents(syllabusId: string, body: unknown) {
+    const parsed = CreateComponentsSchema.safeParse(body);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
+    const sId = Number(syllabusId);
+    if (Number.isNaN(sId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
+    }
+
+    const items = parsed.data.items.map(
+      ({ id, text, order, code, grupo }: any) => ({
+        id,
+        text,
+        order: order ?? null,
+        code: code ?? null,
+        grupo: grupo ?? undefined,
+      }),
+    );
+
+    const res = await syllabusRepository.syncComponents(sId, items);
+    return {
+      ok: true as const,
+      created: res.created,
+      updated: res.updated,
+      deleted: res.deleted,
+      message: `✅ Sincronizado: ${res.created} creados, ${res.updated} actualizados, ${res.deleted} eliminados`,
     };
   }
 
@@ -194,6 +304,37 @@ export class SyllabusService {
     };
   }
 
+  async updateAttitudes(syllabusId: string, body: unknown) {
+    const parsed = CreateAttitudesSchema.safeParse(body);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
+    }
+
+    const sId = Number(syllabusId);
+    if (Number.isNaN(sId)) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "syllabusId inválido");
+    }
+
+    const items = parsed.data.items.map(({ id, text, order, code }: any) => ({
+      id,
+      text,
+      order: order ?? null,
+      code: code ?? null,
+    }));
+
+    const res = await syllabusRepository.syncAttitudes(sId, items);
+    return {
+      ok: true as const,
+      created: res.created,
+      updated: res.updated,
+      deleted: res.deleted,
+      message: `✅ Sincronizado: ${res.created} creados, ${res.updated} actualizados, ${res.deleted} eliminados`,
+    };
+  }
+
   async removeAttitude(syllabusId: string, id: string) {
     const sId = Number(syllabusId);
     const aId = Number(id);
@@ -250,6 +391,119 @@ export class SyllabusService {
     return { message: "Sumilla registrada correctamente" };
   }
 
+  /**
+   * Convierte un string con formato separado por líneas en array de objetos {titulo, descripcion}
+   * Formato esperado: "Título 1|Descripción 1\nTítulo 2|Descripción 2"
+   * O simplemente: "Descripción 1\nDescripción 2" (sin títulos)
+   */
+  private parseTextToItems(
+    text: string | null,
+  ): Array<{ titulo: string; descripcion: string }> {
+    if (!text) return [];
+
+    return text
+      .split("\n")
+      .filter((item) => item.trim().length > 0)
+      .map((item) => {
+        const parts = item.split("|");
+        if (parts.length >= 2) {
+          return {
+            titulo: parts[0].trim(),
+            descripcion: parts[1].trim(),
+          };
+        }
+        return {
+          titulo: "",
+          descripcion: item.trim(),
+        };
+      });
+  }
+
+  /**
+   * Convierte array de objetos {titulo, descripcion} a string con formato separado por líneas
+   */
+  private itemsToText(
+    items: Array<{ titulo: string; descripcion: string }>,
+  ): string {
+    return items
+      .map((item) =>
+        item.titulo ? `${item.titulo}|${item.descripcion}` : item.descripcion,
+      )
+      .join("\n");
+  }
+
+  async getEstrategiasMetodologicas(id: number) {
+    const result = await syllabusRepository.getEstrategiasMetodologicas(id);
+
+    // Convertir el texto a array de objetos
+    if (result && result.estrategiasMetodologicas) {
+      return {
+        items: this.parseTextToItems(result.estrategiasMetodologicas),
+      };
+    }
+
+    return { items: [] };
+  }
+
+  async getRecursosDidacticosNotas(id: number) {
+    const result = await syllabusRepository.getRecursosDidacticosNotas(id);
+
+    // Convertir el texto a array de objetos
+    if (result && result.recursosDidacticosNotas) {
+      return {
+        items: this.parseTextToItems(result.recursosDidacticosNotas),
+      };
+    }
+
+    return { items: [] };
+  }
+
+  async getFormulaEvaluacion(id: number) {
+    const formula = await syllabusRepository.getFormulaEvaluacion(id);
+    return formula;
+  }
+
+  async putEstrategiasMetodologicas(
+    id: number,
+    data: string | Array<{ titulo: string; descripcion: string }>,
+  ) {
+    // Si recibe un array, convertirlo a texto
+    const estrategias =
+      typeof data === "string" ? data : this.itemsToText(data);
+
+    return await syllabusRepository.putEstrategiasMetodologicas(
+      id,
+      estrategias,
+    );
+  }
+
+  async putRecursosDidacticosNotas(
+    id: number,
+    data: string | Array<{ titulo: string; descripcion: string }>,
+  ) {
+    // Si recibe un array, convertirlo a texto
+    const recursos = typeof data === "string" ? data : this.itemsToText(data);
+
+    return await syllabusRepository.putRecursosDidacticosNotas(id, recursos);
+  }
+
+  async postEstrategiasMetodologicas(body: {
+    estrategias_metodologicas: string;
+  }) {
+    const { estrategias_metodologicas } = body;
+    return syllabusRepository.postEstrategiasMetodologicas(
+      estrategias_metodologicas,
+    );
+  }
+
+  async postRecursosDidacticosNotas(body: {
+    recursos_didacticos_notas: string;
+  }) {
+    const { recursos_didacticos_notas } = body;
+    return syllabusRepository.postRecursosDidacticosNotas(
+      recursos_didacticos_notas,
+    );
+  }
   async updateRevisionStatus(id: number, payload: unknown) {
     // Validar payload con Zod
     const schema = z.object({
@@ -319,12 +573,18 @@ export class SyllabusService {
     return result;
   }
 
-  async getSyllabusRevisionById(id: number) {
-    const result = await syllabusRepository.findSyllabusRevisionById(id);
-    if (!result) {
+  async getSyllabusRevisionById(silaboId: number, docenteId?: number) {
+    const permissions = await syllabusRepository.findSectionPermissions(
+      silaboId,
+      docenteId,
+    );
+    if (!permissions) {
       throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
     }
-    return result;
+
+    return {
+      permissions: permissions,
+    };
   }
 
   async approveSyllabus(id: number, data: any) {
@@ -351,23 +611,15 @@ export class SyllabusService {
       throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
     }
 
-    // Validar que se proporcionen observaciones
-    if (!data.observaciones || data.observaciones.trim() === "") {
-      throw new AppError(
-        "BadRequest",
-        "BAD_REQUEST",
-        "Las observaciones son requeridas para desaprobar un sílabo",
-      );
+    // Validar con el esquema DesaprobarSilabo
+    const parsed = DesaprobarSilabo.safeParse(data);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      throw new AppError("BadRequest", "BAD_REQUEST", details);
     }
-
-    // Actualizar estado a DESAPROBADO
-    const result = await syllabusRepository.updateSyllabusStatus(id, {
-      estadoRevision: "DESAPROBADO",
-      observaciones: data.observaciones,
-      actualizadoPorDocenteId: data.docenteId || null,
-    });
-
-    return result;
+    await syllabusRepository.disapproveSyllabus(id, parsed.data);
   }
 
   // ---------- DATOS DE REVISIÓN ----------
@@ -420,6 +672,127 @@ export class SyllabusService {
       seccionesGuardadas: results.length,
       secciones: results,
     };
+  }
+
+  async getAllCourses() {
+    return await syllabusRepository.getAllCourses();
+  }
+
+  // ---------- SECCIÓN I: DATOS GENERALES ----------
+  async updateDatosGenerales(id: number, data: DatosGeneralesUpdate) {
+    const syllabus = await syllabusRepository.findById(id);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return syllabusRepository.updateDatosGenerales(id, data);
+  }
+
+  // ---------- SECCIÓN IV: UNIDADES ----------
+  async getUnidades(silaboId: number) {
+    return syllabusRepository.findUnidadesBySilaboId(silaboId);
+  }
+
+  async createUnidad(silaboId: number, data: UnidadCreate) {
+    const syllabus = await syllabusRepository.findById(silaboId);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return syllabusRepository.insertUnidad(silaboId, data);
+  }
+
+  async updateUnidad(silaboId: number, unidadId: number, data: UnidadUpdate) {
+    const result = await syllabusRepository.updateUnidad(
+      silaboId,
+      unidadId,
+      data,
+    );
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
+    }
+    return result;
+  }
+
+  async deleteUnidad(silaboId: number, unidadId: number) {
+    const deleted = await syllabusRepository.deleteUnidad(silaboId, unidadId);
+    if (!deleted) {
+      throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
+    }
+    return { ok: true, message: "Unidad eliminada correctamente" };
+  }
+
+  // ---------- SECCIÓN VIII: FUENTES ----------
+  async getFuentes(silaboId: number) {
+    return syllabusRepository.findFuentesBySilaboId(silaboId);
+  }
+
+  async createFuente(silaboId: number, data: FuenteCreate) {
+    const syllabus = await syllabusRepository.findById(silaboId);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return syllabusRepository.insertFuente(silaboId, data);
+  }
+
+  async updateFuente(silaboId: number, fuenteId: number, data: FuenteUpdate) {
+    const result = await syllabusRepository.updateFuente(
+      silaboId,
+      fuenteId,
+      data,
+    );
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "Fuente no encontrada");
+    }
+    return result;
+  }
+
+  async deleteFuente(silaboId: number, fuenteId: number) {
+    const deleted = await syllabusRepository.deleteFuente(silaboId, fuenteId);
+    if (!deleted) {
+      throw new AppError("NotFound", "NOT_FOUND", "Fuente no encontrada");
+    }
+    return { ok: true, message: "Fuente eliminada correctamente" };
+  }
+
+  // ---------- SECCIÓN IX: APORTES (GET y PUT) ----------
+  async getContributions(silaboId: number) {
+    return syllabusRepository.findContributionsBySilaboId(silaboId);
+  }
+
+  async updateContribution(
+    silaboId: number,
+    contributionId: number,
+    data: any,
+  ) {
+    const result = await syllabusRepository.updateContribution(
+      silaboId,
+      contributionId,
+      data,
+    );
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "Aporte no encontrado");
+    }
+    return result;
+  }
+
+  // ---------- REVISIÓN ----------
+  async listRevisions() {
+    return syllabusRepository.findAllRevisions();
+  }
+
+  async getRevision(silaboId: number) {
+    return syllabusRepository.findRevisionBySilaboId(silaboId);
+  }
+
+  async createRevision(silaboId: number, data: any) {
+    const syllabus = await syllabusRepository.findById(silaboId);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return syllabusRepository.insertRevision(silaboId, data);
+  }
+
+  async aprobar(silaboId: number) {
+    return syllabusRepository.aprobarSilabo(silaboId);
   }
 }
 
