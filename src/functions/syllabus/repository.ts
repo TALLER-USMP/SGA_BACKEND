@@ -1,5 +1,5 @@
 import { getDb } from "../../db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, asc } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import {
@@ -520,16 +520,13 @@ export class SyllabusRepository extends BaseRepository {
     let query = this.db
       .select({
         id: silabo.id,
-        cursoNombre: silabo.cursoNombre,
-        cursoCodigo: silabo.cursoCodigo,
-        departamentoAcademico: silabo.departamentoAcademico,
-        escuelaProfesional: silabo.escuelaProfesional,
+        code: silabo.cursoCodigo,
+        name: silabo.cursoNombre,
+        ciclo: silabo.ciclo,
+        escuela: silabo.escuelaProfesional,
         estadoRevision: silabo.estadoRevision,
-        asignadoADocenteId: silabo.asignadoADocenteId,
-        nombreDocente: docente.nombreDocente,
-        createdAt: silabo.createdAt,
-        updatedAt: silabo.updatedAt,
       })
+
       .from(silabo)
       .leftJoin(docente, eq(silabo.asignadoADocenteId, docente.id));
 
@@ -547,7 +544,14 @@ export class SyllabusRepository extends BaseRepository {
     }
 
     const result = await query.orderBy(silabo.updatedAt);
-    return result;
+    return result.map((r) => ({
+      id: r.id,
+      code: r.code ?? null,
+      name: r.name ?? null,
+      ciclo: r.ciclo ?? null,
+      escuela: r.escuela ?? null,
+      estadoRevision: r.estadoRevision ?? null,
+    }));
   }
 
   async findSyllabusRevisionById(id: number) {
@@ -862,6 +866,41 @@ export class SyllabusRepository extends BaseRepository {
       });
 
     return result[0] ?? null;
+  }
+
+  async getAllCourses() {
+    try {
+      const result = await this.db
+        .select({
+          id: silabo.id,
+          code: silabo.cursoCodigo,
+          name: silabo.cursoNombre,
+          ciclo: silabo.ciclo,
+          escuela: silabo.escuelaProfesional,
+          estadoRevision: silabo.estadoRevision,
+        })
+        .from(silabo)
+        .orderBy(asc(silabo.cursoCodigo));
+
+      return result.map((r) => ({
+        id: r.id,
+        code: r.code ?? null,
+        name: r.name ?? null,
+        ciclo: r.ciclo ?? null,
+        escuela: r.escuela ?? null,
+        estadoRevision: r.estadoRevision ?? null,
+      }));
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        "DatabaseError",
+        "INTERNAL_SERVER_ERROR",
+        "Error al consultar cursos en la base de datos",
+        error,
+      );
+    }
   }
 }
 

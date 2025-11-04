@@ -465,6 +465,10 @@ export class SyllabusService {
       secciones: results,
     };
   }
+
+  async getAllCourses() {
+    return await syllabusRepository.getAllCourses();
+  }
 }
 
 export const syllabusService = new SyllabusService();
