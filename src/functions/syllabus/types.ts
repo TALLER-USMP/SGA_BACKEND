@@ -387,7 +387,7 @@ export const DesaprobarSilabo = z.object({
       numeroSeccion: int(),
       nombreSeccion: z.string(),
       comentario: z.string(),
-      estado: z.enum(["APROBADO", "DESAPROBADO"]),
+      estado: z.enum(["APROBADO", "DESAPROBADO"]).optional(), // Opcional porque usamos valor fijo en backend
     }),
   ),
 });
