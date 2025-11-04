@@ -1,4 +1,4 @@
-import { SyllabusRepository, syllabusRepository } from "./repository";
+import { syllabusRepository } from "./repository";
 import {
   UpsertCompetenciesSchema,
   CreateComponentsSchema, //
