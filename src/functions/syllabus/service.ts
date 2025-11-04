@@ -3,6 +3,11 @@ import {
   UpsertCompetenciesSchema,
   CreateComponentsSchema, //
   CreateAttitudesSchema, //
+  FuenteCreate,
+  FuenteUpdate,
+  UnidadCreate,
+  UnidadUpdate,
+  DatosGeneralesUpdate,
 } from "./types";
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
@@ -250,12 +255,71 @@ export class SyllabusService {
     return { message: "Sumilla registrada correctamente" };
   }
 
+  /**
+   * Convierte un string con formato separado por líneas en array de objetos {titulo, descripcion}
+   * Formato esperado: "Título 1|Descripción 1\nTítulo 2|Descripción 2"
+   * O simplemente: "Descripción 1\nDescripción 2" (sin títulos)
+   */
+  private parseTextToItems(
+    text: string | null,
+  ): Array<{ titulo: string; descripcion: string }> {
+    if (!text) return [];
+
+    return text
+      .split("\n")
+      .filter((item) => item.trim().length > 0)
+      .map((item) => {
+        const parts = item.split("|");
+        if (parts.length >= 2) {
+          return {
+            titulo: parts[0].trim(),
+            descripcion: parts[1].trim(),
+          };
+        }
+        return {
+          titulo: "",
+          descripcion: item.trim(),
+        };
+      });
+  }
+
+  /**
+   * Convierte array de objetos {titulo, descripcion} a string con formato separado por líneas
+   */
+  private itemsToText(
+    items: Array<{ titulo: string; descripcion: string }>,
+  ): string {
+    return items
+      .map((item) =>
+        item.titulo ? `${item.titulo}|${item.descripcion}` : item.descripcion,
+      )
+      .join("\n");
+  }
+
   async getEstrategiasMetodologicas(id: number) {
-    return await syllabusRepository.getEstrategiasMetodologicas(id);
+    const result = await syllabusRepository.getEstrategiasMetodologicas(id);
+
+    // Convertir el texto a array de objetos
+    if (result && result.estrategiasMetodologicas) {
+      return {
+        items: this.parseTextToItems(result.estrategiasMetodologicas),
+      };
+    }
+
+    return { items: [] };
   }
 
   async getRecursosDidacticosNotas(id: number) {
-    return await syllabusRepository.getRecursosDidacticosNotas(id);
+    const result = await syllabusRepository.getRecursosDidacticosNotas(id);
+
+    // Convertir el texto a array de objetos
+    if (result && result.recursosDidacticosNotas) {
+      return {
+        items: this.parseTextToItems(result.recursosDidacticosNotas),
+      };
+    }
+
+    return { items: [] };
   }
 
   async getFormulaEvaluacion(id: number) {
@@ -263,14 +327,27 @@ export class SyllabusService {
     return formula;
   }
 
-  async putEstrategiasMetodologicas(id: number, estrategias: string) {
+  async putEstrategiasMetodologicas(
+    id: number,
+    data: string | Array<{ titulo: string; descripcion: string }>,
+  ) {
+    // Si recibe un array, convertirlo a texto
+    const estrategias =
+      typeof data === "string" ? data : this.itemsToText(data);
+
     return await syllabusRepository.putEstrategiasMetodologicas(
       id,
       estrategias,
     );
   }
 
-  async putRecursosDidacticosNotas(id: number, recursos: string) {
+  async putRecursosDidacticosNotas(
+    id: number,
+    data: string | Array<{ titulo: string; descripcion: string }>,
+  ) {
+    // Si recibe un array, convertirlo a texto
+    const recursos = typeof data === "string" ? data : this.itemsToText(data);
+
     return await syllabusRepository.putRecursosDidacticosNotas(id, recursos);
   }
 
@@ -464,6 +541,127 @@ export class SyllabusService {
       seccionesGuardadas: results.length,
       secciones: results,
     };
+  }
+
+  // ---------- SECCIÓN I: DATOS GENERALES ----------
+  async updateDatosGenerales(id: number, data: DatosGeneralesUpdate) {
+    const syllabus = await syllabusRepository.findById(id);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return syllabusRepository.updateDatosGenerales(id, data);
+  }
+
+  // ---------- SECCIÓN IV: UNIDADES ----------
+  async getUnidades(silaboId: number) {
+    return syllabusRepository.findUnidadesBySilaboId(silaboId);
+  }
+
+  async createUnidad(silaboId: number, data: UnidadCreate) {
+    const syllabus = await syllabusRepository.findById(silaboId);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return syllabusRepository.insertUnidad(silaboId, data);
+  }
+
+  async updateUnidad(silaboId: number, unidadId: number, data: UnidadUpdate) {
+    const result = await syllabusRepository.updateUnidad(
+      silaboId,
+      unidadId,
+      data,
+    );
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
+    }
+    return result;
+  }
+
+  async deleteUnidad(silaboId: number, unidadId: number) {
+    const deleted = await syllabusRepository.deleteUnidad(silaboId, unidadId);
+    if (!deleted) {
+      throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
+    }
+    return { ok: true, message: "Unidad eliminada correctamente" };
+  }
+
+  // ---------- SECCIÓN VIII: FUENTES ----------
+  async getFuentes(silaboId: number) {
+    return syllabusRepository.findFuentesBySilaboId(silaboId);
+  }
+
+  async createFuente(silaboId: number, data: FuenteCreate) {
+    const syllabus = await syllabusRepository.findById(silaboId);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return syllabusRepository.insertFuente(silaboId, data);
+  }
+
+  async updateFuente(silaboId: number, fuenteId: number, data: FuenteUpdate) {
+    const result = await syllabusRepository.updateFuente(
+      silaboId,
+      fuenteId,
+      data,
+    );
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "Fuente no encontrada");
+    }
+    return result;
+  }
+
+  async deleteFuente(silaboId: number, fuenteId: number) {
+    const deleted = await syllabusRepository.deleteFuente(silaboId, fuenteId);
+    if (!deleted) {
+      throw new AppError("NotFound", "NOT_FOUND", "Fuente no encontrada");
+    }
+    return { ok: true, message: "Fuente eliminada correctamente" };
+  }
+
+  // ---------- SECCIÓN IX: APORTES (GET y PUT) ----------
+  async getContributions(silaboId: number) {
+    return syllabusRepository.findContributionsBySilaboId(silaboId);
+  }
+
+  async updateContribution(
+    silaboId: number,
+    contributionId: number,
+    data: any,
+  ) {
+    const result = await syllabusRepository.updateContribution(
+      silaboId,
+      contributionId,
+      data,
+    );
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "Aporte no encontrado");
+    }
+    return result;
+  }
+
+  // ---------- REVISIÓN ----------
+  async listRevisions() {
+    return syllabusRepository.findAllRevisions();
+  }
+
+  async getRevision(silaboId: number) {
+    return syllabusRepository.findRevisionBySilaboId(silaboId);
+  }
+
+  async createRevision(silaboId: number, data: any) {
+    const syllabus = await syllabusRepository.findById(silaboId);
+    if (!syllabus) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+    return syllabusRepository.insertRevision(silaboId, data);
+  }
+
+  async aprobar(silaboId: number) {
+    return syllabusRepository.aprobarSilabo(silaboId);
+  }
+
+  async desaprobar(silaboId: number, data: any) {
+    return syllabusRepository.desaprobarSilabo(silaboId, data);
   }
 }
 

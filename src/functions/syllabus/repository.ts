@@ -863,6 +863,210 @@ export class SyllabusRepository extends BaseRepository {
 
     return result[0] ?? null;
   }
+
+  // ========================================
+  // SECCIÓN I: DATOS GENERALES
+  // ========================================
+  async updateDatosGenerales(id: number, data: any) {
+    const result = await this.db
+      .update(silabo)
+      .set(data)
+      .where(eq(silabo.id, id))
+      .returning();
+
+    return result[0] || null;
+  }
+
+  // ========================================
+  // SECCIÓN IV: UNIDADES
+  // ========================================
+  async findUnidadesBySilaboId(silaboId: number) {
+    return await this.db
+      .select()
+      .from(schema.silaboUnidad)
+      .where(eq(schema.silaboUnidad.silaboId, silaboId))
+      .orderBy(schema.silaboUnidad.numero);
+  }
+
+  async insertUnidad(silaboId: number, data: any) {
+    const result = await this.db
+      .insert(schema.silaboUnidad)
+      .values({
+        silaboId,
+        ...data,
+      })
+      .returning();
+
+    return result[0];
+  }
+
+  async updateUnidad(silaboId: number, unidadId: number, data: any) {
+    const result = await this.db
+      .update(schema.silaboUnidad)
+      .set(data)
+      .where(
+        and(
+          eq(schema.silaboUnidad.id, unidadId),
+          eq(schema.silaboUnidad.silaboId, silaboId),
+        ),
+      )
+      .returning();
+
+    return result[0] || null;
+  }
+
+  async deleteUnidad(silaboId: number, unidadId: number) {
+    const result = await this.db
+      .delete(schema.silaboUnidad)
+      .where(
+        and(
+          eq(schema.silaboUnidad.id, unidadId),
+          eq(schema.silaboUnidad.silaboId, silaboId),
+        ),
+      )
+      .returning();
+
+    return result.length > 0;
+  }
+
+  // ========================================
+  // SECCIÓN VIII: FUENTES
+  // ========================================
+  async findFuentesBySilaboId(silaboId: number) {
+    return await this.db
+      .select()
+      .from(schema.silaboFuente)
+      .where(eq(schema.silaboFuente.silaboId, silaboId));
+  }
+
+  async insertFuente(silaboId: number, data: any) {
+    const result = await this.db
+      .insert(schema.silaboFuente)
+      .values({
+        silaboId,
+        tipo: data.tipo,
+        autores: data.autores || null,
+        anio: data.anio || null,
+        titulo: data.titulo,
+        editorialRevista: data.editorialRevista || null,
+        ciudad: data.ciudad || null,
+        isbnIssn: data.isbnIssn || null,
+        doiUrl: data.doiUrl || null,
+        notas: data.notas || null,
+      })
+      .returning();
+
+    return result[0];
+  }
+
+  async updateFuente(silaboId: number, fuenteId: number, data: any) {
+    const result = await this.db
+      .update(schema.silaboFuente)
+      .set(data)
+      .where(
+        and(
+          eq(schema.silaboFuente.id, fuenteId),
+          eq(schema.silaboFuente.silaboId, silaboId),
+        ),
+      )
+      .returning();
+
+    return result[0] || null;
+  }
+
+  async deleteFuente(silaboId: number, fuenteId: number) {
+    const result = await this.db
+      .delete(schema.silaboFuente)
+      .where(
+        and(
+          eq(schema.silaboFuente.id, fuenteId),
+          eq(schema.silaboFuente.silaboId, silaboId),
+        ),
+      )
+      .returning();
+
+    return result.length > 0;
+  }
+
+  // ========================================
+  // SECCIÓN IX: APORTES
+  // ========================================
+  async findContributionsBySilaboId(silaboId: number) {
+    return await this.db
+      .select()
+      .from(schema.silaboAporteResultadoPrograma)
+      .where(eq(schema.silaboAporteResultadoPrograma.silaboId, silaboId));
+  }
+
+  async updateContribution(
+    silaboId: number,
+    contributionId: number,
+    data: any,
+  ) {
+    // Nota: silaboAporteResultadoPrograma usa composite primary key
+    const result = await this.db
+      .update(schema.silaboAporteResultadoPrograma)
+      .set(data)
+      .where(eq(schema.silaboAporteResultadoPrograma.silaboId, silaboId))
+      .returning();
+
+    return result[0] || null;
+  }
+
+  // ========================================
+  // REVISIÓN
+  // ========================================
+  async findAllRevisions() {
+    return await this.db
+      .select()
+      .from(schema.silaboRevisionHistorial)
+      .orderBy(sql`${schema.silaboRevisionHistorial.creadoEn} DESC`);
+  }
+
+  async findRevisionBySilaboId(silaboId: number) {
+    return await this.db
+      .select()
+      .from(schema.silaboRevisionHistorial)
+      .where(eq(schema.silaboRevisionHistorial.silaboId, silaboId))
+      .orderBy(sql`${schema.silaboRevisionHistorial.creadoEn} DESC`);
+  }
+
+  async insertRevision(silaboId: number, data: any) {
+    const result = await this.db
+      .insert(schema.silaboRevisionHistorial)
+      .values({
+        silaboId,
+        ...data,
+      })
+      .returning();
+
+    return result[0];
+  }
+
+  async aprobarSilabo(silaboId: number) {
+    const result = await this.db
+      .update(silabo)
+      .set({
+        estadoRevision: "APROBADO",
+      })
+      .where(eq(silabo.id, silaboId))
+      .returning();
+
+    return result[0] || null;
+  }
+
+  async desaprobarSilabo(silaboId: number, data: any) {
+    const result = await this.db
+      .update(silabo)
+      .set({
+        estadoRevision: "DESAPROBADO",
+        observaciones: data.observaciones || null,
+      })
+      .where(eq(silabo.id, silaboId))
+      .returning();
+
+    return result[0] || null;
+  }
 }
 
 export const syllabusRepository = new SyllabusRepository();

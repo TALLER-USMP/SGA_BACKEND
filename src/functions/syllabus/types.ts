@@ -312,3 +312,72 @@ export const CompleteSyllabusResponseSchema = z.object({
 export type CompleteSyllabusResponse = z.infer<
   typeof CompleteSyllabusResponseSchema
 >;
+
+/* ========================================
+   SECCIÓN VIII: FUENTES DE CONSULTA
+   ======================================== */
+export const FuenteCreateSchema = z.object({
+  tipo: z.enum(["libro", "articulo", "recurso_electronico", "otro"]),
+  autores: z.string().optional(),
+  anio: z.number().int().min(1900).max(2100).optional(),
+  titulo: z.string().min(1, "El título es obligatorio"),
+  editorialRevista: z.string().optional(),
+  ciudad: z.string().optional(),
+  isbnIssn: z.string().optional(),
+  doiUrl: z.string().url().optional().or(z.literal("")),
+  notas: z.string().optional(),
+});
+
+export const FuenteUpdateSchema = FuenteCreateSchema.partial();
+
+export type FuenteCreate = z.infer<typeof FuenteCreateSchema>;
+export type FuenteUpdate = z.infer<typeof FuenteUpdateSchema>;
+
+/* ========================================
+   SECCIÓN IV: UNIDADES (PROGRAMACIÓN DE CONTENIDOS)
+   ======================================== */
+export const UnidadCreateSchema = z.object({
+  numero: z.number().int().positive(),
+  titulo: z.string().min(1, "El título es obligatorio"),
+  capacidadesText: z.string().optional(),
+  semanaInicio: z.number().int().positive().optional(),
+  semanaFin: z.number().int().positive().optional(),
+  contenidosConceptuales: z.string().optional(),
+  contenidosProcedimentales: z.string().optional(),
+  actividadesAprendizaje: z.string().optional(),
+  horasLectivasTeoria: z.number().int().nonnegative().optional(),
+  horasLectivasPractica: z.number().int().nonnegative().optional(),
+  horasNoLectivasTeoria: z.number().int().nonnegative().optional(),
+  horasNoLectivasPractica: z.number().int().nonnegative().optional(),
+});
+
+export const UnidadUpdateSchema = UnidadCreateSchema.partial();
+
+export type UnidadCreate = z.infer<typeof UnidadCreateSchema>;
+export type UnidadUpdate = z.infer<typeof UnidadUpdateSchema>;
+
+/* ========================================
+   SECCIÓN I: DATOS GENERALES (UPDATE)
+   ======================================== */
+export const DatosGeneralesUpdateSchema = z.object({
+  departamentoAcademico: z.string().optional(),
+  escuelaProfesional: z.string().optional(),
+  programaAcademico: z.string().optional(),
+  areaCurricular: z.string().optional(),
+  cursoCodigo: z.string().optional(),
+  cursoNombre: z.string().optional(),
+  semestreAcademico: z.string().optional(),
+  tipoAsignatura: z.string().optional(),
+  tipoDeEstudios: z.string().optional(),
+  modalidadDeAsignatura: z.string().optional(),
+  formatoDeCurso: z.string().optional(),
+  ciclo: z.string().optional(),
+  requisitos: z.string().optional(),
+  horasTeoria: z.number().int().nonnegative().optional(),
+  horasPractica: z.number().int().nonnegative().optional(),
+  horasLaboratorio: z.number().int().nonnegative().optional(),
+  horasTotales: z.number().int().nonnegative().optional(),
+  creditosTotales: z.number().int().nonnegative().optional(),
+});
+
+export type DatosGeneralesUpdate = z.infer<typeof DatosGeneralesUpdateSchema>;
