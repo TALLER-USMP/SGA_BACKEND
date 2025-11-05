@@ -36,30 +36,41 @@ export class AuthController implements Readable {
 
   @route("/me", "POST")
   async getOne(req: HttpRequest): Promise<HttpResponseInit> {
-    const cookieToken = getCookie(req.headers, "sessionSGA");
-    const queryToken = req.query.get("token");
+    const tokenFromCookie = getCookie(req.headers, "sessionSGA");
+    const tokenFromQuery = req.query.get("token");
     const body = (await req.json().catch(() => ({}))) as { token?: string };
-    const bodyToken = body.token;
+    const tokenFromBody = body.token;
 
-    const ourToken = bodyToken || queryToken || cookieToken;
+    const token = tokenFromCookie || tokenFromQuery || tokenFromBody || null;
 
-    if (!ourToken) {
+    if (!token) {
       return {
         status: STATUS_CODES.BAD_REQUEST,
         jsonBody: { message: "Token requerido o sesión no encontrada." },
       };
     }
 
-    const cookieHeader = createAuthCookieHeader(ourToken);
-    const authResponse = await authService.sessionMe(ourToken);
+    const isValid = await authService.isTokenValid(token);
+    if (!isValid) {
+      return {
+        status: STATUS_CODES.UNAUTHORIZED,
+        jsonBody: { message: "Token inválido o expirado." },
+      };
+    }
+
+    const authResponse = await authService.sessionMe(token);
     const responseData = sessionResponseSchema.parse(authResponse);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (!tokenFromCookie && token) {
+      headers["Set-Cookie"] = createAuthCookieHeader(token);
+    }
 
     return {
       status: STATUS_CODES.OK,
-      headers: {
-        "Set-Cookie": cookieHeader,
-        "Content-Type": "application/json",
-      },
+      headers,
       jsonBody: {
         message: "Sesión activa",
         user: responseData.user,

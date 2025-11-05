@@ -7,11 +7,11 @@ import {
   integer,
   boolean,
   timestamp,
+  check,
   varchar,
   text,
-  uniqueIndex,
   date,
-  jsonb,
+  uniqueIndex,
   json,
   primaryKey,
 } from "drizzle-orm/pg-core";
@@ -78,6 +78,9 @@ export const docente = pgTable(
     actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
     nombreDocente: varchar("nombre_docente", { length: 100 }),
     gradoAcademicoId: integer("grado_academico_id"),
+    numeroCelular: varchar("numero_celular", { length: 9 })
+      .default("000000000")
+      .notNull(),
   },
   (table) => [
     foreignKey({
@@ -91,6 +94,11 @@ export const docente = pgTable(
       name: "docente_grado_academico_id_fkey",
     }),
     unique("docente_correo_key").on(table.correo),
+    unique("uq_docente_numero_celular").on(table.numeroCelular),
+    check(
+      "ck_docente_numero_celular_9dig",
+      sql`(numero_celular)::text ~ '^[9][0-9]{8}$'::text`,
+    ),
   ],
 );
 
@@ -227,6 +235,31 @@ export const silabo = pgTable(
   ],
 );
 
+export const formulaEvaluacionSubformula = pgTable(
+  "formula_evaluacion_subformula",
+  {
+    id: serial().primaryKey().notNull(),
+    formulaEvaluacionReglaId: integer("formula_evaluacion_regla_id").notNull(),
+    variableCodigo: varchar("variable_codigo").notNull(),
+    expresion: text().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.formulaEvaluacionReglaId],
+      foreignColumns: [formulaEvaluacionRegla.id],
+      name: "formula_evaluacion_subformula_formula_evaluacion_regla_id_fkey",
+    }),
+    unique("formula_evaluacion_subformula_unq").on(
+      table.formulaEvaluacionReglaId,
+      table.variableCodigo,
+    ),
+    unique("uq_subformula_regla_var").on(
+      table.formulaEvaluacionReglaId,
+      table.variableCodigo,
+    ),
+  ],
+);
+
 export const gradoAcademicoCatalogo = pgTable(
   "grado_academico_catalogo",
   {
@@ -239,277 +272,6 @@ export const gradoAcademicoCatalogo = pgTable(
     actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
   },
   (table) => [unique("grado_academico_catalogo_codigo_key").on(table.codigo)],
-);
-
-export const silaboSumilla = pgTable(
-  "silabo_sumilla",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    contenido: text().notNull(),
-    palabrasClave: text("palabras_clave"),
-    version: integer().default(1),
-    esActual: boolean("es_actual").default(true),
-    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_sumilla_silabo_id_fkey",
-    }),
-    unique("silabo_sumilla_unq").on(table.silaboId, table.version),
-    unique("uq_silabo_sumilla_silabo_version").on(
-      table.silaboId,
-      table.version,
-    ),
-  ],
-);
-
-export const silaboUnidad = pgTable(
-  "silabo_unidad",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    numero: integer().notNull(),
-    titulo: varchar().notNull(),
-    capacidadesText: text("capacidades_text"),
-    semanaInicio: integer("semana_inicio"),
-    semanaFin: integer("semana_fin"),
-    contenidosConceptuales: text("contenidos_conceptuales"),
-    contenidosProcedimentales: text("contenidos_procedimentales"),
-    actividadesAprendizaje: text("actividades_aprendizaje"),
-    horasLectivasTeoria: integer("horas_lectivas_teoria"),
-    horasLectivasPractica: integer("horas_lectivas_practica"),
-    horasNoLectivasTeoria: integer("horas_no_lectivas_teoria"),
-    horasNoLectivasPractica: integer("horas_no_lectivas_practica"),
-  },
-  (table) => [
-    uniqueIndex("uq_silabo_unidad").using(
-      "btree",
-      table.silaboId.asc().nullsLast().op("int4_ops"),
-      table.numero.asc().nullsLast().op("int4_ops"),
-    ),
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_unidad_silabo_id_fkey",
-    }),
-  ],
-);
-
-export const silaboResultadoAprendizaje = pgTable(
-  "silabo_resultado_aprendizaje",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    descripcion: text().notNull(),
-    orden: integer(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_resultado_aprendizaje_curso_silabo_id_fkey",
-    }),
-  ],
-);
-
-export const recursoDidacticoCatalogo = pgTable(
-  "recurso_didactico_catalogo",
-  {
-    id: serial().primaryKey().notNull(),
-    codigo: varchar().notNull(),
-    nombre: varchar().notNull(),
-    descripcion: text(),
-    activo: boolean().default(true),
-    creadoEn: timestamp("creado_en", { mode: "string" }).defaultNow(),
-    actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
-  },
-  (table) => [unique("recurso_didactico_catalogo_codigo_key").on(table.codigo)],
-);
-
-export const silaboFuente = pgTable(
-  "silabo_fuente",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    tipo: varchar().notNull(),
-    autores: varchar(),
-    anio: integer(),
-    titulo: text(),
-    editorialRevista: varchar("editorial_revista"),
-    ciudad: varchar(),
-    isbnIssn: varchar("isbn_issn"),
-    doiUrl: varchar("doi_url"),
-    notas: text(),
-  },
-  (table) => [
-    uniqueIndex("uq_silabo_fuente").using(
-      "btree",
-      table.silaboId.asc().nullsLast().op("int4_ops"),
-      table.titulo.asc().nullsLast().op("text_ops"),
-      table.anio.asc().nullsLast().op("text_ops"),
-    ),
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_fuente_silabo_id_fkey",
-    }),
-  ],
-);
-
-export const silaboCompetenciaCurso = pgTable(
-  "silabo_competencia_curso",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    codigo: varchar(),
-    descripcion: text().notNull(),
-    referenciaProgramaCodigo: varchar("referencia_programa_codigo"),
-    orden: integer(),
-    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_competencia_curso_silabo_id_fkey",
-    }),
-  ],
-);
-
-export const silaboRecursoDidactico = pgTable(
-  "silabo_recurso_didactico",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    recursoId: integer("recurso_id").notNull(),
-    silaboUnidadId: integer("silabo_unidad_id"),
-    destino: varchar(),
-    urlReferencia: varchar("url_referencia"),
-    observaciones: text(),
-    creadoEn: timestamp("creado_en", { mode: "string" }).defaultNow(),
-    actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
-    claveUnica: text("clave_unica").generatedAlwaysAs(
-      sql`(((((((silabo_id)::text || '-'::text) || (recurso_id)::text) || '-'::text) || COALESCE((silabo_unidad_id)::text, '0'::text)) || '-'::text) || (COALESCE(destino, ''::character varying))::text)`,
-    ),
-  },
-  (table) => [
-    index("idx_silabo_recurso").using(
-      "btree",
-      table.silaboId.asc().nullsLast().op("int4_ops"),
-      table.recursoId.asc().nullsLast().op("int4_ops"),
-    ),
-    foreignKey({
-      columns: [table.recursoId],
-      foreignColumns: [recursoDidacticoCatalogo.id],
-      name: "silabo_recurso_didactico_recurso_id_fkey",
-    }),
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_recurso_didactico_silabo_id_fkey",
-    }),
-    foreignKey({
-      columns: [table.silaboUnidadId],
-      foreignColumns: [silaboUnidad.id],
-      name: "silabo_recurso_didactico_silabo_unidad_id_fkey",
-    }),
-    unique("uq_recurso_por_silabo").on(table.silaboId, table.recursoId),
-    unique("uq_silabo_recurso").on(table.claveUnica),
-  ],
-);
-
-export const silaboCompetenciaComponente = pgTable(
-  "silabo_competencia_componente",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    grupo: varchar().notNull(),
-    codigo: varchar(),
-    descripcion: text().notNull(),
-    competenciaCodigoRelacionada: varchar("competencia_codigo_relacionada"),
-    orden: integer(),
-    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_competencia_componente_silabo_id_fkey",
-    }),
-  ],
-);
-
-export const planEvaluacionOferta = pgTable(
-  "plan_evaluacion_oferta",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    componenteNombre: varchar("componente_nombre").notNull(),
-    instrumentoNombre: varchar("instrumento_nombre"),
-    semana: integer(),
-    fecha: date(),
-    instrucciones: text(),
-    rubricaUrl: varchar("rubrica_url"),
-    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "plan_evaluacion_oferta_silabo_id_fkey",
-    }),
-    unique("plan_evaluacion_oferta_unq").on(
-      table.silaboId,
-      table.componenteNombre,
-      table.semana,
-    ),
-    unique("uq_plan_eval_silabo_comp_semana").on(
-      table.silaboId,
-      table.componenteNombre,
-      table.semana,
-    ),
-  ],
-);
-
-export const formulaEvaluacionRegla = pgTable(
-  "formula_evaluacion_regla",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    nombreRegla: varchar("nombre_regla").notNull(),
-    variableFinalCodigo: varchar("variable_final_codigo").notNull(),
-    expresionFinal: text("expresion_final").notNull(),
-    descripcion: text(),
-    version: integer().default(1),
-    activo: boolean().default(true),
-    lenguaje: varchar().default("INFIX"),
-    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
-    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "formula_evaluacion_regla_silabo_id_fkey",
-    }),
-    unique("formula_evaluacion_regla_unq").on(
-      table.silaboId,
-      table.nombreRegla,
-      table.version,
-    ),
-    unique("uq_regla_silabo_nombre_version").on(
-      table.silaboId,
-      table.nombreRegla,
-      table.version,
-    ),
-  ],
 );
 
 export const formulaEvaluacionVariable = pgTable(
@@ -536,31 +298,6 @@ export const formulaEvaluacionVariable = pgTable(
     unique("uq_variable_regla_codigo").on(
       table.formulaEvaluacionReglaId,
       table.codigo,
-    ),
-  ],
-);
-
-export const formulaEvaluacionSubformula = pgTable(
-  "formula_evaluacion_subformula",
-  {
-    id: serial().primaryKey().notNull(),
-    formulaEvaluacionReglaId: integer("formula_evaluacion_regla_id").notNull(),
-    variableCodigo: varchar("variable_codigo").notNull(),
-    expresion: text().notNull(),
-  },
-  (table) => [
-    foreignKey({
-      columns: [table.formulaEvaluacionReglaId],
-      foreignColumns: [formulaEvaluacionRegla.id],
-      name: "formula_evaluacion_subformula_formula_evaluacion_regla_id_fkey",
-    }),
-    unique("formula_evaluacion_subformula_unq").on(
-      table.formulaEvaluacionReglaId,
-      table.variableCodigo,
-    ),
-    unique("uq_subformula_regla_var").on(
-      table.formulaEvaluacionReglaId,
-      table.variableCodigo,
     ),
   ],
 );
@@ -597,24 +334,156 @@ export const formulaEvaluacionVariablePlan = pgTable(
   ],
 );
 
-export const formulaEvaluacionBase = pgTable(
-  "formula_evaluacion_base",
+export const planEvaluacionOferta = pgTable(
+  "plan_evaluacion_oferta",
   {
     id: serial().primaryKey().notNull(),
-    nombreFormula: varchar("nombre_formula").notNull(),
-    descripcion: text(),
-    lenguaje: varchar().default("INFIX").notNull(),
-    formulaTexto: text("formula_texto").notNull(),
-    variables: jsonb().notNull(),
-    definiciones: jsonb().notNull(),
-    version: integer().default(1),
-    activa: boolean().default(true),
+    silaboId: integer("silabo_id").notNull(),
+    componenteNombre: varchar("componente_nombre").notNull(),
+    instrumentoNombre: varchar("instrumento_nombre"),
+    semana: integer(),
+    fecha: date(),
+    instrucciones: text(),
+    rubricaUrl: varchar("rubrica_url"),
     createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
   },
   (table) => [
-    unique("formula_evaluacion_base_nombre_formula_key").on(
-      table.nombreFormula,
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "plan_evaluacion_oferta_silabo_id_fkey",
+    }),
+    unique("plan_evaluacion_oferta_unq").on(
+      table.silaboId,
+      table.componenteNombre,
+      table.semana,
+    ),
+    unique("uq_plan_eval_silabo_comp_semana").on(
+      table.silaboId,
+      table.componenteNombre,
+      table.semana,
+    ),
+  ],
+);
+
+export const silaboCompetenciaComponente = pgTable(
+  "silabo_competencia_componente",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    grupo: varchar().notNull(),
+    codigo: varchar(),
+    descripcion: text().notNull(),
+    competenciaCodigoRelacionada: varchar("competencia_codigo_relacionada"),
+    orden: integer(),
+    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_competencia_componente_silabo_id_fkey",
+    }),
+  ],
+);
+
+export const recursoDidacticoCatalogo = pgTable(
+  "recurso_didactico_catalogo",
+  {
+    id: serial().primaryKey().notNull(),
+    codigo: varchar().notNull(),
+    nombre: varchar().notNull(),
+    descripcion: text(),
+    activo: boolean().default(true),
+    creadoEn: timestamp("creado_en", { mode: "string" }).defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
+  },
+  (table) => [unique("recurso_didactico_catalogo_codigo_key").on(table.codigo)],
+);
+
+export const silaboCompetenciaCurso = pgTable(
+  "silabo_competencia_curso",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    codigo: varchar(),
+    descripcion: text().notNull(),
+    referenciaProgramaCodigo: varchar("referencia_programa_codigo"),
+    orden: integer(),
+    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_competencia_curso_silabo_id_fkey",
+    }),
+  ],
+);
+
+export const silaboFuente = pgTable(
+  "silabo_fuente",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    tipo: varchar().notNull(),
+    autores: varchar(),
+    anio: integer(),
+    titulo: text(),
+    editorialRevista: varchar("editorial_revista"),
+    ciudad: varchar(),
+    isbnIssn: varchar("isbn_issn"),
+    doiUrl: varchar("doi_url"),
+    notas: text(),
+  },
+  (table) => [
+    uniqueIndex("uq_silabo_fuente").using(
+      "btree",
+      table.silaboId.asc().nullsLast().op("int4_ops"),
+      table.titulo.asc().nullsLast().op("text_ops"),
+      table.anio.asc().nullsLast().op("text_ops"),
+    ),
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_fuente_silabo_id_fkey",
+    }),
+  ],
+);
+
+export const formulaEvaluacionRegla = pgTable(
+  "formula_evaluacion_regla",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    nombreRegla: varchar("nombre_regla").notNull(),
+    variableFinalCodigo: varchar("variable_final_codigo").notNull(),
+    expresionFinal: text("expresion_final").notNull(),
+    descripcion: text(),
+    version: integer().default(1),
+    activo: boolean().default(true),
+    lenguaje: varchar().default("INFIX"),
+    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "formula_evaluacion_regla_silabo_id_fkey",
+    }),
+    unique("formula_evaluacion_regla_unq").on(
+      table.silaboId,
+      table.nombreRegla,
+      table.version,
+    ),
+    unique("uq_regla_silabo_nombre_version").on(
+      table.silaboId,
+      table.nombreRegla,
+      table.version,
     ),
   ],
 );
@@ -670,69 +539,92 @@ export const auditEvent = pgTable(
   ],
 );
 
-export const silaboRevisionSeccion = pgTable(
-  "silabo_revision_seccion",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    numeroSeccion: integer("numero_seccion").notNull(),
-    nombreSeccion: varchar("nombre_seccion").notNull(),
-    estado: varchar().default("PENDIENTE").notNull(),
-    revisadoPor: integer("revisado_por"),
-    revisadoEn: timestamp("revisado_en", { mode: "string" }).defaultNow(),
-    comentariosCount: integer("comentarios_count").default(0),
-  },
-  (table) => [
-    index("idx_rev_estado").using(
-      "btree",
-      table.estado.asc().nullsLast().op("text_ops"),
-    ),
-    uniqueIndex("uq_silabo_rev_seccion").using(
-      "btree",
-      table.silaboId.asc().nullsLast().op("int4_ops"),
-      table.numeroSeccion.asc().nullsLast().op("int4_ops"),
-    ),
-    foreignKey({
-      columns: [table.revisadoPor],
-      foreignColumns: [docente.id],
-      name: "silabo_revision_seccion_revisado_por_fkey",
-    }).onDelete("set null"),
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_revision_seccion_silabo_id_fkey",
-    }).onDelete("cascade"),
-    unique("uq_rev_seccion_silabo_num").on(table.silaboId, table.numeroSeccion),
-  ],
-);
-
 export const evaluacionAprendizaje = pgTable(
   "evaluacion_aprendizaje",
   {
     id: serial().primaryKey().notNull(),
     silaboId: integer("silabo_id").notNull(),
-    formulaBaseId: integer("formula_base_id"),
     fechaCreacion: timestamp("fecha_creacion", { mode: "string" }).defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
+    formulaReglaId: integer("formula_regla_id").notNull(),
   },
   (table) => [
-    index("idx_evaluacion_aprendizaje_formula_base").using(
+    index("idx_ea_silabo_id").using(
       "btree",
-      table.formulaBaseId.asc().nullsLast().op("int4_ops"),
+      table.silaboId.asc().nullsLast().op("int4_ops"),
     ),
     index("idx_evaluacion_aprendizaje_silabo").using(
       "btree",
       table.silaboId.asc().nullsLast().op("int4_ops"),
     ),
     foreignKey({
-      columns: [table.formulaBaseId],
-      foreignColumns: [formulaEvaluacionBase.id],
-      name: "evaluacion_aprendizaje_formula_base_id_fkey",
+      columns: [table.formulaReglaId],
+      foreignColumns: [formulaEvaluacionRegla.id],
+      name: "evaluacion_aprendizaje_formula_regla_id_fkey",
     }),
     foreignKey({
       columns: [table.silaboId],
       foreignColumns: [silabo.id],
       name: "evaluacion_aprendizaje_silabo_id_fkey",
+    }),
+  ],
+);
+
+export const silaboRecursoDidactico = pgTable(
+  "silabo_recurso_didactico",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    recursoId: integer("recurso_id").notNull(),
+    silaboUnidadId: integer("silabo_unidad_id"),
+    destino: varchar(),
+    urlReferencia: varchar("url_referencia"),
+    observaciones: text(),
+    creadoEn: timestamp("creado_en", { mode: "string" }).defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
+    claveUnica: text("clave_unica").generatedAlwaysAs(
+      sql`(((((((silabo_id)::text || '-'::text) || (recurso_id)::text) || '-'::text) || COALESCE((silabo_unidad_id)::text, '0'::text)) || '-'::text) || (COALESCE(destino, ''::character varying))::text)`,
+    ),
+  },
+  (table) => [
+    index("idx_silabo_recurso").using(
+      "btree",
+      table.silaboId.asc().nullsLast().op("int4_ops"),
+      table.recursoId.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.recursoId],
+      foreignColumns: [recursoDidacticoCatalogo.id],
+      name: "silabo_recurso_didactico_recurso_id_fkey",
+    }),
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_recurso_didactico_silabo_id_fkey",
+    }),
+    foreignKey({
+      columns: [table.silaboUnidadId],
+      foreignColumns: [silaboUnidad.id],
+      name: "silabo_recurso_didactico_silabo_unidad_id_fkey",
+    }),
+    unique("uq_recurso_por_silabo").on(table.silaboId, table.recursoId),
+    unique("uq_silabo_recurso").on(table.claveUnica),
+  ],
+);
+
+export const silaboResultadoAprendizaje = pgTable(
+  "silabo_resultado_aprendizaje",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    descripcion: text().notNull(),
+    orden: integer(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_resultado_aprendizaje_curso_silabo_id_fkey",
     }),
   ],
 );
@@ -806,6 +698,100 @@ export const silaboRevisionHistorial = pgTable(
       foreignColumns: [silabo.id],
       name: "silabo_revision_historial_silabo_id_fkey",
     }).onDelete("cascade"),
+  ],
+);
+
+export const silaboRevisionSeccion = pgTable(
+  "silabo_revision_seccion",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    numeroSeccion: integer("numero_seccion").notNull(),
+    nombreSeccion: varchar("nombre_seccion").notNull(),
+    estado: varchar().default("PENDIENTE").notNull(),
+    revisadoPor: integer("revisado_por"),
+    revisadoEn: timestamp("revisado_en", { mode: "string" }).defaultNow(),
+    comentariosCount: integer("comentarios_count").default(0),
+  },
+  (table) => [
+    index("idx_rev_estado").using(
+      "btree",
+      table.estado.asc().nullsLast().op("text_ops"),
+    ),
+    uniqueIndex("uq_silabo_rev_seccion").using(
+      "btree",
+      table.silaboId.asc().nullsLast().op("int4_ops"),
+      table.numeroSeccion.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.revisadoPor],
+      foreignColumns: [docente.id],
+      name: "silabo_revision_seccion_revisado_por_fkey",
+    }).onDelete("set null"),
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_revision_seccion_silabo_id_fkey",
+    }).onDelete("cascade"),
+    unique("uq_rev_seccion_silabo_num").on(table.silaboId, table.numeroSeccion),
+  ],
+);
+
+export const silaboSumilla = pgTable(
+  "silabo_sumilla",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    contenido: text().notNull(),
+    palabrasClave: text("palabras_clave"),
+    version: integer().default(1),
+    esActual: boolean("es_actual").default(true),
+    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_sumilla_silabo_id_fkey",
+    }),
+    unique("silabo_sumilla_unq").on(table.silaboId, table.version),
+    unique("uq_silabo_sumilla_silabo_version").on(
+      table.silaboId,
+      table.version,
+    ),
+  ],
+);
+
+export const silaboUnidad = pgTable(
+  "silabo_unidad",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    numero: integer().notNull(),
+    titulo: varchar().notNull(),
+    capacidadesText: text("capacidades_text"),
+    semanaInicio: integer("semana_inicio"),
+    semanaFin: integer("semana_fin"),
+    contenidosConceptuales: text("contenidos_conceptuales"),
+    contenidosProcedimentales: text("contenidos_procedimentales"),
+    actividadesAprendizaje: text("actividades_aprendizaje"),
+    horasLectivasTeoria: integer("horas_lectivas_teoria"),
+    horasLectivasPractica: integer("horas_lectivas_practica"),
+    horasNoLectivasTeoria: integer("horas_no_lectivas_teoria"),
+    horasNoLectivasPractica: integer("horas_no_lectivas_practica"),
+  },
+  (table) => [
+    uniqueIndex("uq_silabo_unidad").using(
+      "btree",
+      table.silaboId.asc().nullsLast().op("int4_ops"),
+      table.numero.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_unidad_silabo_id_fkey",
+    }),
   ],
 );
 

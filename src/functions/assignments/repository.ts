@@ -1,27 +1,18 @@
-import { getDb } from "../../db";
-import { silabo, silaboDocente } from "../../../drizzle/schema";
-import { ilike, eq, and, asc, is } from "drizzle-orm";
-import type { SilaboListItem, SilaboFilters } from "./types";
+import { and, asc, eq, ilike } from "drizzle-orm";
+import { silabo, silaboDocente, docente } from "../../../drizzle/schema";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { getDb } from "../../db";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
-import { id } from "zod/v4/locales/index.cjs";
+import { BaseRepository } from "../../lib/repository";
+import type {
+  CreateAssignmentPayload,
+  SilaboFilters,
+  SilaboListItem,
+  CourseSimple,
+} from "./types";
 
-class AssignmentsRepository {
-  private db: NodePgDatabase<typeof schema>;
-
-  constructor() {
-    const database = getDb();
-    if (!database) {
-      throw new AppError(
-        "DatabaseError",
-        "INTERNAL_SERVER_ERROR",
-        "No se pudo obtener la conexión a la base de datos",
-      );
-    }
-    this.db = database as unknown as NodePgDatabase<typeof schema>;
-  }
-
+class AssignmentsRepository extends BaseRepository {
   async getAll(filters?: SilaboFilters): Promise<SilaboListItem[]> {
     try {
       const conditions: any[] = [];
@@ -40,11 +31,14 @@ class AssignmentsRepository {
       }
 
       if (filters?.idSilabo !== undefined) {
-        conditions.push(eq(silabo.id, filters.idSilabo));
+        conditions.push(eq(silabo.id, Number(filters.idSilabo)));
       }
 
       if (filters?.idDocente !== undefined) {
-        conditions.push(eq(silaboDocente.docenteId, filters.idDocente));
+        conditions.push(eq(silaboDocente.docenteId, Number(filters.idDocente)));
+      }
+      if (filters?.areaCurricular !== undefined) {
+        conditions.push(eq(silabo.areaCurricular, filters.areaCurricular));
       }
 
       if (filters?.estadoRevision?.trim()) {
@@ -60,15 +54,14 @@ class AssignmentsRepository {
           estadoRevision: silabo.estadoRevision,
           syllabusId: silabo.id,
           docenteId: silaboDocente.docenteId,
+          nombreDocente: docente.nombreDocente,
+          docenteEmail: docente.correo,
+          areaCurricular: silabo.areaCurricular,
         })
         .from(silabo)
-        .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId));
-
-      if (conditions.length > 0) {
-        query.where(
-          conditions.length === 1 ? conditions[0] : and(...conditions),
-        );
-      }
+        .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId))
+        .innerJoin(docente, eq(silaboDocente.docenteId, docente.id))
+        .where(and(...(conditions.length > 0 ? conditions : [])));
 
       query.orderBy(asc(silabo.cursoCodigo));
 
@@ -80,6 +73,9 @@ class AssignmentsRepository {
         estadoRevision: r.estadoRevision ?? null,
         syllabusId: r.syllabusId,
         docenteId: r.docenteId ?? null,
+        nombreDocente: r.nombreDocente ?? null,
+        docenteEmail: r.docenteEmail ?? null,
+        areaCurricular: r.areaCurricular ?? null,
       }));
     } catch (error) {
       if (error instanceof AppError) {
@@ -94,44 +90,43 @@ class AssignmentsRepository {
     }
   }
 
-  async getByStatus(
-    idDocente: string,
-    estadoRevision: string,
-  ): Promise<SilaboListItem[]> {
-    try {
-      const idDocenteNum = Number(idDocente);
+  async create(assigment: CreateAssignmentPayload) {
+    return await this.db.transaction((transaction) => {
+      return transaction
+        .insert(silaboDocente)
+        .values({
+          silaboId: assigment.syllabus.id,
+          docenteId: assigment.teacher.id,
+          rol: "asignado",
+          observaciones: assigment.message,
+        })
+        .returning();
+    });
+  }
 
-      if (isNaN(idDocenteNum) || idDocenteNum <= 0) {
-        throw new AppError(
-          "ValidationError",
-          "BAD_REQUEST",
-          "El idDocente debe ser un número válido mayor que cero",
-        );
-      }
+  async getAllCourses(): Promise<CourseSimple[]> {
+    try {
       const result = await this.db
-        .select({
-          cursoCodigo: silabo.cursoCodigo,
-          cursoNombre: silabo.cursoNombre,
+        .selectDistinct({
+          id: silabo.id,
+          code: silabo.cursoCodigo,
+          name: silabo.cursoNombre,
+          ciclo: silabo.ciclo,
+          escuela: silabo.escuelaProfesional,
           estadoRevision: silabo.estadoRevision,
-          syllabusId: silabo.id,
-          docenteId: silaboDocente.docenteId,
         })
         .from(silabo)
         .innerJoin(silaboDocente, eq(silabo.id, silaboDocente.silaboId))
-        .where(
-          and(
-            eq(silaboDocente.docenteId, idDocenteNum),
-            eq(silabo.estadoRevision, estadoRevision),
-          ),
-        )
+        .innerJoin(docente, eq(silaboDocente.docenteId, docente.id))
         .orderBy(asc(silabo.cursoCodigo));
 
       return result.map((r) => ({
-        cursoCodigo: r.cursoCodigo ?? null,
-        cursoNombre: r.cursoNombre ?? null,
+        id: r.id,
+        code: r.code ?? null,
+        name: r.name ?? null,
+        ciclo: r.ciclo ?? null,
+        escuela: r.escuela ?? null,
         estadoRevision: r.estadoRevision ?? null,
-        syllabusId: r.syllabusId,
-        docenteId: r.docenteId ?? null,
       }));
     } catch (error) {
       if (error instanceof AppError) {
@@ -140,11 +135,11 @@ class AssignmentsRepository {
       throw new AppError(
         "DatabaseError",
         "INTERNAL_SERVER_ERROR",
-        "Error al consultar sílabos en la base de datos",
+        "Error al consultar cursos en la base de datos",
         error,
       );
     }
   }
 }
 
-export const SilaboRepository = new AssignmentsRepository();
+export const assignmentsRepository = new AssignmentsRepository();
