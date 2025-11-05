@@ -3,13 +3,14 @@ import {
   docente,
   silaboSeccionPermiso,
   silabo,
-  silaboUnidad,
   categoriaUsuario,
   gradoAcademicoCatalogo,
+  silaboUnidad,
   silaboDocente,
   formulaEvaluacionRegla,
   formulaEvaluacionSubformula,
   formulaEvaluacionVariable,
+  silaboUnidadSemana,
   formulaEvaluacionVariablePlan,
   planEvaluacionOferta,
   silaboCompetenciaComponente,
@@ -103,17 +104,6 @@ export const silaboRelations = relations(silabo, ({ one, many }) => ({
   silaboAporteResultadoProgramas: many(silaboAporteResultadoPrograma),
 }));
 
-export const silaboUnidadRelations = relations(
-  silaboUnidad,
-  ({ one, many }) => ({
-    silabo: one(silabo, {
-      fields: [silaboUnidad.silaboId],
-      references: [silabo.id],
-    }),
-    silaboRecursoDidacticos: many(silaboRecursoDidactico),
-  }),
-);
-
 export const categoriaUsuarioRelations = relations(
   categoriaUsuario,
   ({ many }) => ({
@@ -126,6 +116,18 @@ export const gradoAcademicoCatalogoRelations = relations(
   gradoAcademicoCatalogo,
   ({ many }) => ({
     docentes: many(docente),
+  }),
+);
+
+export const silaboUnidadRelations = relations(
+  silaboUnidad,
+  ({ one, many }) => ({
+    silabo: one(silabo, {
+      fields: [silaboUnidad.silaboId],
+      references: [silabo.id],
+    }),
+    silaboUnidadSemanas: many(silaboUnidadSemana),
+    silaboRecursoDidacticos: many(silaboRecursoDidactico),
   }),
 );
 
@@ -170,6 +172,16 @@ export const formulaEvaluacionVariableRelations = relations(
     formulaEvaluacionRegla: one(formulaEvaluacionRegla, {
       fields: [formulaEvaluacionVariable.formulaEvaluacionReglaId],
       references: [formulaEvaluacionRegla.id],
+    }),
+  }),
+);
+
+export const silaboUnidadSemanaRelations = relations(
+  silaboUnidadSemana,
+  ({ one }) => ({
+    silaboUnidad: one(silaboUnidad, {
+      fields: [silaboUnidadSemana.silaboUnidadId],
+      references: [silaboUnidad.id],
     }),
   }),
 );

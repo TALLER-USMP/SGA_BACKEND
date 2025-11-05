@@ -336,6 +336,23 @@ export type FuenteUpdate = z.infer<typeof FuenteUpdateSchema>;
 /* ========================================
    SECCIÓN IV: UNIDADES (PROGRAMACIÓN DE CONTENIDOS)
    ======================================== */
+
+// Schema para las semanas de una unidad
+export const UnidadSemanaSchema = z.object({
+  id: z.number().int().optional(),
+  silaboUnidadId: z.number().int().optional(),
+  semana: z.number().int().min(1).max(16),
+  contenidosConceptuales: z.string().optional().nullable(),
+  contenidosProcedimentales: z.string().optional().nullable(),
+  actividadesAprendizaje: z.string().optional().nullable(),
+  horasLectivasTeoria: z.number().int().nonnegative().default(0),
+  horasLectivasPractica: z.number().int().nonnegative().default(0),
+  horasNoLectivasTeoria: z.number().int().nonnegative().default(0),
+  horasNoLectivasPractica: z.number().int().nonnegative().default(0),
+  creadoEn: z.string().optional(),
+  actualizadoEn: z.string().optional(),
+});
+
 export const UnidadCreateSchema = z.object({
   numero: z.number().int().positive(),
   titulo: z.string().min(1, "El título es obligatorio"),
@@ -349,12 +366,36 @@ export const UnidadCreateSchema = z.object({
   horasLectivasPractica: z.number().int().nonnegative().optional(),
   horasNoLectivasTeoria: z.number().int().nonnegative().optional(),
   horasNoLectivasPractica: z.number().int().nonnegative().optional(),
+  semanas: z.array(UnidadSemanaSchema).optional(),
 });
 
 export const UnidadUpdateSchema = UnidadCreateSchema.partial();
 
+// Schema para respuesta completa de unidad (GET)
+export const UnidadCompleteSchema = z.object({
+  id: z.number().int(),
+  silaboId: z.number().int(),
+  numero: z.number().int(),
+  titulo: z.string(),
+  capacidadesText: z.string().nullable().optional(),
+  semanaInicio: z.number().int().nullable().optional(),
+  semanaFin: z.number().int().nullable().optional(),
+  contenidosConceptuales: z.string().nullable().optional(),
+  contenidosProcedimentales: z.string().nullable().optional(),
+  actividadesAprendizaje: z.string().nullable().optional(),
+  horasLectivasTeoria: z.number().int().nullable().optional(),
+  horasLectivasPractica: z.number().int().nullable().optional(),
+  horasNoLectivasTeoria: z.number().int().nullable().optional(),
+  horasNoLectivasPractica: z.number().int().nullable().optional(),
+  creadoEn: z.string().optional(),
+  actualizadoEn: z.string().optional(),
+  semanas: z.array(UnidadSemanaSchema),
+});
+
+export type UnidadSemana = z.infer<typeof UnidadSemanaSchema>;
 export type UnidadCreate = z.infer<typeof UnidadCreateSchema>;
 export type UnidadUpdate = z.infer<typeof UnidadUpdateSchema>;
+export type UnidadComplete = z.infer<typeof UnidadCompleteSchema>;
 
 /* ========================================
    SECCIÓN I: DATOS GENERALES (UPDATE)
@@ -393,3 +434,107 @@ export const DesaprobarSilabo = z.object({
 });
 
 export type DatosGeneralesUpdate = z.infer<typeof DatosGeneralesUpdateSchema>;
+
+/* ========================================
+   FÓRMULA DE EVALUACIÓN
+   ======================================== */
+
+// Variable individual de la fórmula
+export const FormulaVariableSchema = z.object({
+  codigo: z.string().min(1, "El código de la variable es requerido"),
+  nombre: z.string().min(1, "El nombre de la variable es requerido"),
+  tipo: z.string().default(""),
+  descripcion: z.string().optional(),
+  orden: z.number().int().nonnegative().optional(),
+});
+
+// Subfórmula (expresión intermedia)
+export const FormulaSubformulaSchema = z.object({
+  variableCodigo: z.string().min(1, "El código de la variable es requerido"),
+  expresion: z.string().min(1, "La expresión es requerida"),
+});
+
+// Mapeo de variable a plan de evaluación
+export const FormulaVariablePlanMappingSchema = z.object({
+  variableCodigo: z.string().min(1, "El código de la variable es requerido"),
+  planEvaluacionOfertaId: z
+    .number()
+    .int()
+    .positive("ID del plan de evaluación requerido"),
+});
+
+// Plan de evaluación (componente de evaluación)
+export const PlanEvaluacionSchema = z.object({
+  id: z.number().int().positive(),
+  componenteNombre: z.string(),
+  instrumentoNombre: z.string().nullable(),
+  semana: z.number().int().nullable(),
+  fecha: z.string().nullable(),
+  instrucciones: z.string().nullable(),
+  rubricaUrl: z.string().nullable(),
+});
+
+// Variable con su mapeo al plan
+export const FormulaVariableWithPlanSchema = FormulaVariableSchema.extend({
+  planEvaluacion: PlanEvaluacionSchema.nullable().optional(),
+});
+
+// Respuesta completa de la fórmula de evaluación (GET)
+export const FormulaEvaluacionCompleteSchema = z.object({
+  id: z.number().int().positive(),
+  silaboId: z.number().int().positive(),
+  nombreRegla: z.string(),
+  variableFinalCodigo: z.string(),
+  expresionFinal: z.string(),
+  activo: z.boolean(),
+  variables: z.array(FormulaVariableSchema),
+  subformulas: z.array(FormulaSubformulaSchema),
+  variablePlanMappings: z.array(FormulaVariablePlanMappingSchema),
+  planesEvaluacion: z.array(PlanEvaluacionSchema).optional(),
+});
+
+// Schema para crear una nueva fórmula (POST)
+export const FormulaEvaluacionCreateSchema = z.object({
+  silaboId: z.number().int().positive("ID del sílabo requerido"),
+  nombreRegla: z.string().min(1, "El nombre de la regla es requerido"),
+  variableFinalCodigo: z
+    .string()
+    .min(1, "El código de la variable final es requerido"),
+  expresionFinal: z.string().min(1, "La expresión final es requerida"),
+  activo: z.boolean().default(true),
+  variables: z
+    .array(FormulaVariableSchema)
+    .min(1, "Debe incluir al menos una variable"),
+  subformulas: z.array(FormulaSubformulaSchema).optional().default([]),
+  variablePlanMappings: z
+    .array(FormulaVariablePlanMappingSchema)
+    .optional()
+    .default([]),
+});
+
+// Schema para actualizar una fórmula existente (PUT)
+export const FormulaEvaluacionUpdateSchema = z.object({
+  nombreRegla: z.string().min(1).optional(),
+  variableFinalCodigo: z.string().min(1).optional(),
+  expresionFinal: z.string().min(1).optional(),
+  activo: z.boolean().optional(),
+  variables: z.array(FormulaVariableSchema).optional(),
+  subformulas: z.array(FormulaSubformulaSchema).optional(),
+  variablePlanMappings: z.array(FormulaVariablePlanMappingSchema).optional(),
+});
+
+export type FormulaVariable = z.infer<typeof FormulaVariableSchema>;
+export type FormulaSubformula = z.infer<typeof FormulaSubformulaSchema>;
+export type FormulaVariablePlanMapping = z.infer<
+  typeof FormulaVariablePlanMappingSchema
+>;
+export type PlanEvaluacion = z.infer<typeof PlanEvaluacionSchema>;
+export type FormulaEvaluacionComplete = z.infer<
+  typeof FormulaEvaluacionCompleteSchema
+>;
+export type FormulaEvaluacionCreate = z.infer<
+  typeof FormulaEvaluacionCreateSchema
+>;
+export type FormulaEvaluacionUpdate = z.infer<
+  typeof FormulaEvaluacionUpdateSchema
+>;

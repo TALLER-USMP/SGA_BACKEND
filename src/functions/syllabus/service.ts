@@ -9,6 +9,11 @@ import {
   UnidadUpdate,
   DatosGeneralesUpdate,
   DesaprobarSilabo,
+  FormulaEvaluacionCompleteSchema,
+  FormulaEvaluacionCreateSchema,
+  FormulaEvaluacionUpdateSchema,
+  FormulaEvaluacionCreate,
+  FormulaEvaluacionUpdate,
 } from "./types";
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
@@ -460,7 +465,109 @@ export class SyllabusService {
 
   async getFormulaEvaluacion(id: number) {
     const formula = await syllabusRepository.getFormulaEvaluacion(id);
-    return formula;
+
+    if (!formula) {
+      throw new AppError(
+        "Fórmula no encontrada",
+        "NOT_FOUND",
+        "La fórmula de evaluación solicitada no existe",
+      );
+    }
+
+    // Validar la estructura con Zod
+    try {
+      return FormulaEvaluacionCompleteSchema.parse(formula);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "Error de validación",
+          "BAD_REQUEST",
+          "Error en la estructura de fórmula de evaluación: " +
+            error.issues.map((e) => e.message).join(", "),
+        );
+      }
+      throw error;
+    }
+  }
+
+  async getFormulaEvaluacionBySilaboId(silaboId: number) {
+    const formula =
+      await syllabusRepository.getFormulaEvaluacionBySilaboId(silaboId);
+
+    if (!formula) {
+      throw new AppError(
+        "Fórmula no encontrada",
+        "NOT_FOUND",
+        "No se encontró una fórmula activa para este sílabo",
+      );
+    }
+
+    // Validar la estructura con Zod
+    try {
+      return FormulaEvaluacionCompleteSchema.parse(formula);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "Error de validación",
+          "BAD_REQUEST",
+          "Error en la estructura de fórmula de evaluación: " +
+            error.issues.map((e) => e.message).join(", "),
+        );
+      }
+      throw error;
+    }
+  }
+
+  async createFormulaEvaluacion(data: FormulaEvaluacionCreate) {
+    // Validar datos con Zod
+    try {
+      const validatedData = FormulaEvaluacionCreateSchema.parse(data);
+
+      // Crear la fórmula en el repositorio
+      const formula =
+        await syllabusRepository.createFormulaEvaluacion(validatedData);
+
+      return formula;
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "Error de validación",
+          "BAD_REQUEST",
+          "Error en los datos de fórmula: " +
+            error.issues
+              .map((e) => `${e.path.join(".")}: ${e.message}`)
+              .join(", "),
+        );
+      }
+      throw error;
+    }
+  }
+
+  async updateFormulaEvaluacion(id: number, data: FormulaEvaluacionUpdate) {
+    // Validar datos con Zod
+    try {
+      const validatedData = FormulaEvaluacionUpdateSchema.parse(data);
+
+      // Actualizar la fórmula en el repositorio
+      const formula = await syllabusRepository.updateFormulaEvaluacion(
+        id,
+        validatedData,
+      );
+
+      return formula;
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "Error de validación",
+          "BAD_REQUEST",
+          "Error en los datos de actualización: " +
+            error.issues
+              .map((e) => `${e.path.join(".")}: ${e.message}`)
+              .join(", "),
+        );
+      }
+      throw error;
+    }
   }
 
   async putEstrategiasMetodologicas(
@@ -539,6 +646,25 @@ export class SyllabusService {
     return {
       ok: true,
       message: `Estado actualizado a ${estadoRevision} correctamente`,
+    };
+  }
+
+  // Cambiar estado del sílabo a "ANALIZANDO"
+  async setAnalizandoStatus(id: number) {
+    // Verificar que el sílabo existe
+    const current = await syllabusRepository.getStateById(id);
+    if (!current) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+
+    // Actualizar el estado a "ANALIZANDO"
+    await syllabusRepository.updateReviewStatus(id, "ANALIZANDO");
+
+    return {
+      ok: true,
+      message: "Estado del sílabo cambiado a ANALIZANDO correctamente",
+      estadoAnterior: current.estadoRevision,
+      estadoNuevo: "ANALIZANDO",
     };
   }
 
@@ -689,7 +815,36 @@ export class SyllabusService {
 
   // ---------- SECCIÓN IV: UNIDADES ----------
   async getUnidades(silaboId: number) {
-    return syllabusRepository.findUnidadesBySilaboId(silaboId);
+    const unidades = await syllabusRepository.findUnidadesBySilaboId(silaboId);
+
+    // Para cada unidad, obtener sus semanas
+    const unidadesConSemanas = await Promise.all(
+      unidades.map(async (unidad) => {
+        const semanas = await syllabusRepository.findSemanasByUnidadId(
+          unidad.id,
+        );
+        return {
+          ...unidad,
+          semanas,
+        };
+      }),
+    );
+
+    return unidadesConSemanas;
+  }
+
+  async getUnidadById(silaboId: number, unidadId: number) {
+    const unidad = await syllabusRepository.findUnidadById(silaboId, unidadId);
+    if (!unidad) {
+      throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
+    }
+
+    const semanas = await syllabusRepository.findSemanasByUnidadId(unidad.id);
+
+    return {
+      ...unidad,
+      semanas,
+    };
   }
 
   async createUnidad(silaboId: number, data: UnidadCreate) {
@@ -697,22 +852,68 @@ export class SyllabusService {
     if (!syllabus) {
       throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
     }
-    return syllabusRepository.insertUnidad(silaboId, data);
+
+    const { semanas, ...unidadData } = data;
+    const unidad = await syllabusRepository.insertUnidad(silaboId, unidadData);
+
+    // Si hay semanas, crearlas
+    if (semanas && semanas.length > 0) {
+      await Promise.all(
+        semanas.map((semana) =>
+          syllabusRepository.insertUnidadSemana(unidad.id, semana),
+        ),
+      );
+    }
+
+    // Retornar unidad con sus semanas
+    const semanasCreadas = await syllabusRepository.findSemanasByUnidadId(
+      unidad.id,
+    );
+    return {
+      ...unidad,
+      semanas: semanasCreadas,
+    };
   }
 
   async updateUnidad(silaboId: number, unidadId: number, data: UnidadUpdate) {
-    const result = await syllabusRepository.updateUnidad(
+    const { semanas, ...unidadData } = data;
+
+    // Actualizar datos de la unidad
+    const unidad = await syllabusRepository.updateUnidad(
       silaboId,
       unidadId,
-      data,
+      unidadData,
     );
-    if (!result) {
+
+    if (!unidad) {
       throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
     }
-    return result;
+
+    // Si se proporcionan semanas, actualizar/crear/eliminar según corresponda
+    if (semanas !== undefined) {
+      // Eliminar todas las semanas existentes y crear las nuevas
+      await syllabusRepository.deleteUnidadSemanasByUnidadId(unidadId);
+
+      if (semanas.length > 0) {
+        await Promise.all(
+          semanas.map((semana) =>
+            syllabusRepository.insertUnidadSemana(unidadId, semana),
+          ),
+        );
+      }
+    }
+
+    // Retornar unidad actualizada con sus semanas
+    const semanasActualizadas =
+      await syllabusRepository.findSemanasByUnidadId(unidadId);
+    return {
+      ...unidad,
+      semanas: semanasActualizadas,
+    };
   }
 
   async deleteUnidad(silaboId: number, unidadId: number) {
+    // Las semanas se eliminan automáticamente por CASCADE en la BD
     const deleted = await syllabusRepository.deleteUnidad(silaboId, unidadId);
     if (!deleted) {
       throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
