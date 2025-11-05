@@ -69,6 +69,23 @@ class AssignmentsService {
 
     return await assignmentsRepository.create(createAssigment);
   }
+
+  async listByStatus(filters: {
+    idDocente: string;
+    estadoRevision: string;
+  }): Promise<SilaboListItem[]> {
+    const { idDocente, estadoRevision } = filters;
+
+    if (!idDocente || !estadoRevision) {
+      throw new AppError(
+        "ValidationError",
+        "BAD_REQUEST",
+        "Faltan parámetros obligatorios: idDocente y estadoRevision",
+      );
+    }
+
+    return SilaboRepository.getByStatus(idDocente, estadoRevision);
+  }
 }
 
 export const assignmentsService = new AssignmentsService();

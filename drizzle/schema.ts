@@ -118,7 +118,7 @@ export const categoriaUsuario = pgTable(
 );
 
 export const funcionAplicacion = pgTable(
-  "funcion_aplicacion",
+  "funcion_aplicacioncausa",
   {
     id: serial().primaryKey().notNull(),
     codigo: varchar().notNull(),
