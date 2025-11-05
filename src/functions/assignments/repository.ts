@@ -38,12 +38,6 @@ class AssignmentsRepository extends BaseRepository {
         conditions.push(eq(silabo.areaCurricular, filters.areaCurricular));
       }
 
-      if (filters?.estadoRevision?.trim()) {
-        conditions.push(
-          eq(silabo.estadoRevision, filters.estadoRevision.trim()),
-        );
-      }
-
       const query = this.db
         .select({
           cursoCodigo: silabo.cursoCodigo,

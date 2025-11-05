@@ -3,6 +3,7 @@ import {
   docente,
   silaboSeccionPermiso,
   silabo,
+  silaboUnidad,
   categoriaUsuario,
   gradoAcademicoCatalogo,
   silaboDocente,
@@ -18,7 +19,6 @@ import {
   evaluacionAprendizaje,
   recursoDidacticoCatalogo,
   silaboRecursoDidactico,
-  silaboUnidad,
   silaboResultadoAprendizaje,
   silaboRevisionComentario,
   silaboRevisionSeccion,
@@ -71,6 +71,7 @@ export const docenteRelations = relations(docente, ({ one, many }) => ({
 
 export const silaboRelations = relations(silabo, ({ one, many }) => ({
   silaboSeccionPermisos: many(silaboSeccionPermiso),
+  silaboUnidads: many(silaboUnidad),
   silaboDocentes: many(silaboDocente),
   docente_actualizadoPorDocenteId: one(docente, {
     fields: [silabo.actualizadoPorDocenteId],
@@ -99,9 +100,19 @@ export const silaboRelations = relations(silabo, ({ one, many }) => ({
   silaboRevisionHistorials: many(silaboRevisionHistorial),
   silaboRevisionSeccions: many(silaboRevisionSeccion),
   silaboSumillas: many(silaboSumilla),
-  silaboUnidads: many(silaboUnidad),
   silaboAporteResultadoProgramas: many(silaboAporteResultadoPrograma),
 }));
+
+export const silaboUnidadRelations = relations(
+  silaboUnidad,
+  ({ one, many }) => ({
+    silabo: one(silabo, {
+      fields: [silaboUnidad.silaboId],
+      references: [silabo.id],
+    }),
+    silaboRecursoDidacticos: many(silaboRecursoDidactico),
+  }),
+);
 
 export const categoriaUsuarioRelations = relations(
   categoriaUsuario,
@@ -262,17 +273,6 @@ export const recursoDidacticoCatalogoRelations = relations(
   recursoDidacticoCatalogo,
   ({ many }) => ({
     silaboRecursoDidacticos: many(silaboRecursoDidactico),
-  }),
-);
-
-export const silaboUnidadRelations = relations(
-  silaboUnidad,
-  ({ one, many }) => ({
-    silaboRecursoDidacticos: many(silaboRecursoDidactico),
-    silabo: one(silabo, {
-      fields: [silaboUnidad.silaboId],
-      references: [silabo.id],
-    }),
   }),
 );
 
