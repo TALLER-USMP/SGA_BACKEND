@@ -3,7 +3,7 @@ name: Deploy Azure Function with RBAC
 on:
   push:
     branches:
-      - dev
+      - main
 
 env:
   AZURE_FUNCTIONAPP_NAME: "Pruebadeploy4"
