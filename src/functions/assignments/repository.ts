@@ -1,8 +1,5 @@
 import { and, asc, eq, ilike } from "drizzle-orm";
 import { silabo, silaboDocente, docente } from "../../../drizzle/schema";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { getDb } from "../../db";
-import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
 import { BaseRepository } from "../../lib/repository";
 import type {
