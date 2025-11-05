@@ -64,61 +64,6 @@ export const silaboSeccionPermiso = pgTable(
   ],
 );
 
-export const silaboUnidad = pgTable(
-  "silabo_unidad",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    numero: integer().notNull(),
-    titulo: varchar().notNull(),
-    capacidadesText: text("capacidades_text"),
-    contenidosConceptuales: text("contenidos_conceptuales"),
-    contenidosProcedimentales: text("contenidos_procedimentales"),
-    actividadesAprendizaje: text("actividades_aprendizaje"),
-    horasLectivasTeoria: integer("horas_lectivas_teoria"),
-    horasLectivasPractica: integer("horas_lectivas_practica"),
-    horasNoLectivasTeoria: integer("horas_no_lectivas_teoria"),
-    horasNoLectivasPractica: integer("horas_no_lectivas_practica"),
-    contenidosConceptualesSemana: text(
-      "contenidos_conceptuales_semana",
-    ).array(),
-    contenidosProcedimentalesSemana: text(
-      "contenidos_procedimentales_semana",
-    ).array(),
-    actividadesAprendizajeSemana: text(
-      "actividades_aprendizaje_semana",
-    ).array(),
-    horasLectivasTeoriaSemanaArr: smallint(
-      "horas_lectivas_teoria_semana_arr",
-    ).array(),
-    horasLectivasPracticaSemanaArr: smallint(
-      "horas_lectivas_practica_semana_arr",
-    ).array(),
-    horasNoLectivasTeoriaSemanaArr: smallint(
-      "horas_no_lectivas_teoria_semana_arr",
-    ).array(),
-    horasNoLectivasPracticaSemanaArr: smallint(
-      "horas_no_lectivas_practica_semana_arr",
-    ).array(),
-  },
-  (table) => [
-    uniqueIndex("uq_silabo_unidad").using(
-      "btree",
-      table.silaboId.asc().nullsLast().op("int4_ops"),
-      table.numero.asc().nullsLast().op("int4_ops"),
-    ),
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_unidad_silabo_id_fkey",
-    }),
-    check(
-      "su_arrays_mismo_largo",
-      sql`(array_length(contenidos_conceptuales_semana, 1) IS NULL) OR (array_length(contenidos_procedimentales_semana, 1) IS NULL) OR (array_length(actividades_aprendizaje_semana, 1) IS NULL) OR (array_length(horas_lectivas_teoria_semana_arr, 1) IS NULL) OR (array_length(horas_lectivas_practica_semana_arr, 1) IS NULL) OR (array_length(horas_no_lectivas_teoria_semana_arr, 1) IS NULL) OR (array_length(horas_no_lectivas_practica_semana_arr, 1) IS NULL) OR (array_length(contenidos_conceptuales_semana, 1) = ALL (ARRAY[array_length(contenidos_procedimentales_semana, 1), array_length(actividades_aprendizaje_semana, 1), array_length(horas_lectivas_teoria_semana_arr, 1), array_length(horas_lectivas_practica_semana_arr, 1), array_length(horas_no_lectivas_teoria_semana_arr, 1), array_length(horas_no_lectivas_practica_semana_arr, 1)]))`,
-    ),
-  ],
-);
-
 export const docente = pgTable(
   "docente",
   {
@@ -159,6 +104,37 @@ export const docente = pgTable(
       "ck_docente_numero_celular_9dig",
       sql`(numero_celular)::text ~ '^[9][0-9]{8}$'::text`,
     ),
+  ],
+);
+
+export const silaboUnidad = pgTable(
+  "silabo_unidad",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    numero: integer().notNull(),
+    titulo: varchar().notNull(),
+    capacidadesText: text("capacidades_text"),
+    contenidosConceptuales: text("contenidos_conceptuales"),
+    contenidosProcedimentales: text("contenidos_procedimentales"),
+    actividadesAprendizaje: text("actividades_aprendizaje"),
+    horasLectivasTeoria: integer("horas_lectivas_teoria"),
+    horasLectivasPractica: integer("horas_lectivas_practica"),
+    horasNoLectivasTeoria: integer("horas_no_lectivas_teoria"),
+    horasNoLectivasPractica: integer("horas_no_lectivas_practica"),
+  },
+  (table) => [
+    uniqueIndex("uq_silabo_unidad").using(
+      "btree",
+      table.silaboId.asc().nullsLast().op("int4_ops"),
+      table.numero.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_unidad_silabo_id_fkey",
+    }),
+    unique("silabo_unidad_silabo_numero_uk").on(table.silaboId, table.numero),
   ],
 );
 
@@ -220,6 +196,34 @@ export const silaboDocente = pgTable(
     unique("uq_silabo_docente").on(table.silaboId, table.docenteId, table.rol),
   ],
 );
+
+export const silaboUnidadBackup = pgTable("silabo_unidad_backup", {
+  id: integer(),
+  silaboId: integer("silabo_id"),
+  numero: integer(),
+  titulo: varchar(),
+  capacidadesText: text("capacidades_text"),
+  contenidosConceptuales: text("contenidos_conceptuales"),
+  contenidosProcedimentales: text("contenidos_procedimentales"),
+  actividadesAprendizaje: text("actividades_aprendizaje"),
+  horasLectivasTeoria: integer("horas_lectivas_teoria"),
+  horasLectivasPractica: integer("horas_lectivas_practica"),
+  horasNoLectivasTeoria: integer("horas_no_lectivas_teoria"),
+  horasNoLectivasPractica: integer("horas_no_lectivas_practica"),
+  contenidosConceptualesSemana: text("contenidos_conceptuales_semana"),
+  contenidosProcedimentalesSemana: text("contenidos_procedimentales_semana"),
+  actividadesAprendizajeSemana: text("actividades_aprendizaje_semana"),
+  horasLectivasTeoriaSemanaArr: smallint("horas_lectivas_teoria_semana_arr"),
+  horasLectivasPracticaSemanaArr: smallint(
+    "horas_lectivas_practica_semana_arr",
+  ),
+  horasNoLectivasTeoriaSemanaArr: smallint(
+    "horas_no_lectivas_teoria_semana_arr",
+  ),
+  horasNoLectivasPracticaSemanaArr: smallint(
+    "horas_no_lectivas_practica_semana_arr",
+  ),
+});
 
 export const silabo = pgTable(
   "silabo",
@@ -323,6 +327,10 @@ export const formulaEvaluacionSubformula = pgTable(
       table.formulaEvaluacionReglaId,
       table.variableCodigo,
     ),
+    unique("formula_subf_uk").on(
+      table.formulaEvaluacionReglaId,
+      table.variableCodigo,
+    ),
   ],
 );
 
@@ -364,6 +372,44 @@ export const formulaEvaluacionVariable = pgTable(
     unique("uq_variable_regla_codigo").on(
       table.formulaEvaluacionReglaId,
       table.codigo,
+    ),
+  ],
+);
+
+export const silaboUnidadSemana = pgTable(
+  "silabo_unidad_semana",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboUnidadId: integer("silabo_unidad_id").notNull(),
+    semana: smallint().notNull(),
+    contenidosConceptuales: text("contenidos_conceptuales"),
+    contenidosProcedimentales: text("contenidos_procedimentales"),
+    actividadesAprendizaje: text("actividades_aprendizaje"),
+    horasLectivasTeoria: integer("horas_lectivas_teoria").default(0),
+    horasLectivasPractica: integer("horas_lectivas_practica").default(0),
+    horasNoLectivasTeoria: integer("horas_no_lectivas_teoria").default(0),
+    horasNoLectivasPractica: integer("horas_no_lectivas_practica").default(0),
+    creadoEn: timestamp("creado_en", { mode: "string" }).defaultNow(),
+    actualizadoEn: timestamp("actualizado_en", { mode: "string" }).defaultNow(),
+  },
+  (table) => [
+    index("idx_silabo_unidad_semana_semana").using(
+      "btree",
+      table.semana.asc().nullsLast().op("int2_ops"),
+    ),
+    index("idx_silabo_unidad_semana_unidad_id").using(
+      "btree",
+      table.silaboUnidadId.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.silaboUnidadId],
+      foreignColumns: [silaboUnidad.id],
+      name: "fk_silabo_unidad",
+    }).onDelete("cascade"),
+    unique("silabo_unidad_semana_uk").on(table.silaboUnidadId, table.semana),
+    check(
+      "silabo_unidad_semana_semana_check",
+      sql`(semana >= 1) AND (semana <= 16)`,
     ),
   ],
 );
@@ -697,6 +743,7 @@ export const silaboResultadoAprendizaje = pgTable(
       foreignColumns: [silabo.id],
       name: "silabo_resultado_aprendizaje_curso_silabo_id_fkey",
     }),
+    unique("silabo_ra_uk").on(table.silaboId, table.orden),
   ],
 );
 

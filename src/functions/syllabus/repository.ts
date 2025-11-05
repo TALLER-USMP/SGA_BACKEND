@@ -1,5 +1,5 @@
 import { getDb } from "../../db";
-import { eq, and, sql, asc } from "drizzle-orm";
+import { eq, and, sql, asc, inArray } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import {
@@ -686,12 +686,28 @@ export class SyllabusRepository extends BaseRepository {
       .where(eq(schema.silaboResultadoAprendizaje.silaboId, id))
       .orderBy(schema.silaboResultadoAprendizaje.orden);
 
-    // 6. Unidades Didácticas
+    // 6. Unidades Didácticas CON SEMANAS
     const unidades = await this.db
       .select()
       .from(schema.silaboUnidad)
       .where(eq(schema.silaboUnidad.silaboId, id))
       .orderBy(schema.silaboUnidad.numero);
+
+    // Para cada unidad, obtener sus semanas
+    const unidadesConSemanas = await Promise.all(
+      unidades.map(async (unidad) => {
+        const semanas = await this.db
+          .select()
+          .from(schema.silaboUnidadSemana)
+          .where(eq(schema.silaboUnidadSemana.silaboUnidadId, unidad.id))
+          .orderBy(schema.silaboUnidadSemana.semana);
+
+        return {
+          ...unidad,
+          semanas,
+        };
+      }),
+    );
 
     // 7. Estrategias Metodológicas (del silabo principal)
     const estrategiasResult = await this.db
@@ -700,6 +716,11 @@ export class SyllabusRepository extends BaseRepository {
       .where(eq(silabo.id, id));
 
     // 8. Recursos Didácticos
+    const recursosDidacticosNotasResult = await this.db
+      .select({ notas: silabo.recursosDidacticosNotas })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
     const recursos = await this.db
       .select({
         id: schema.silaboRecursoDidactico.id,
@@ -725,11 +746,9 @@ export class SyllabusRepository extends BaseRepository {
       .where(eq(schema.planEvaluacionOferta.silaboId, id))
       .orderBy(schema.planEvaluacionOferta.semana);
 
-    // Formula de Evaluación
-    const formulaEvaluacion = await this.db
-      .select({
-        expresion: schema.formulaEvaluacionRegla.expresionFinal,
-      })
+    // Formula de Evaluación COMPLETA (usando el método existente)
+    const formulaEvaluacionResult = await this.db
+      .select({ id: schema.formulaEvaluacionRegla.id })
       .from(schema.formulaEvaluacionRegla)
       .where(
         and(
@@ -738,6 +757,13 @@ export class SyllabusRepository extends BaseRepository {
         ),
       )
       .limit(1);
+
+    let formulaEvaluacionCompleta = null;
+    if (formulaEvaluacionResult.length > 0) {
+      formulaEvaluacionCompleta = await this.getFormulaEvaluacion(
+        formulaEvaluacionResult[0].id,
+      );
+    }
 
     // 10. Fuentes de Información
     const fuentes = await this.db
@@ -751,6 +777,7 @@ export class SyllabusRepository extends BaseRepository {
         ciudad: schema.silaboFuente.ciudad,
         isbn: schema.silaboFuente.isbnIssn,
         url: schema.silaboFuente.doiUrl,
+        notas: schema.silaboFuente.notas,
       })
       .from(schema.silaboFuente)
       .where(eq(schema.silaboFuente.silaboId, id));
@@ -758,6 +785,7 @@ export class SyllabusRepository extends BaseRepository {
     // 11. Aportes a Resultados del Programa
     const aportes = await this.db
       .select({
+        silaboId: schema.silaboAporteResultadoPrograma.silaboId,
         resultadoCodigo:
           schema.silaboAporteResultadoPrograma.resultadoProgramaCodigo,
         resultadoDescripcion:
@@ -767,27 +795,101 @@ export class SyllabusRepository extends BaseRepository {
       .from(schema.silaboAporteResultadoPrograma)
       .where(eq(schema.silaboAporteResultadoPrograma.silaboId, id));
 
+    // Parsear estrategias metodológicas
+    const estrategiasTexto = estrategiasResult[0]?.estrategias || null;
+    const estrategiasMetodologicas = estrategiasTexto
+      ? this.parseEstrategiasMetodologicas(estrategiasTexto)
+      : null;
+
+    // Parsear recursos didácticos notas
+    const recursosNotasTexto = recursosDidacticosNotasResult[0]?.notas || null;
+    const recursosNotas = recursosNotasTexto
+      ? this.parseRecursosDidacticosNotas(recursosNotasTexto)
+      : null;
+
     return {
-      datosGenerales: {
-        ...datosGenerales,
-        areaCurricular: null, // Si no está en DB, null
-      },
+      datosGenerales,
       sumilla: sumillaResult[0]?.contenido || null,
       competenciasCurso: competencias,
       componentesConceptuales,
       componentesProcedimentales,
       componentesActitudinales,
       resultadosAprendizaje,
-      unidadesDidacticas: unidades,
-      estrategiasMetodologicas: estrategiasResult[0]?.estrategias || null,
-      recursosDidacticos: recursos,
+      unidadesDidacticas: unidadesConSemanas,
+      estrategiasMetodologicas,
+      recursosDidacticos: {
+        notas: recursosNotas,
+        recursos,
+      },
       evaluacionAprendizaje: {
         planEvaluacion,
-        formulaEvaluacion: formulaEvaluacion[0]?.expresion || null,
+        formulaEvaluacion: formulaEvaluacionCompleta,
       },
       fuentes,
       aportesResultadosPrograma: aportes,
     };
+  }
+
+  /**
+   * Parsea el texto de estrategias metodológicas a un array estructurado
+   * Formato esperado: "Nombre método|Descripción\nOtro método|Otra descripción"
+   */
+  private parseEstrategiasMetodologicas(
+    texto: string,
+  ): Array<{ nombre: string; descripcion: string }> {
+    if (!texto || texto.trim() === "") return [];
+
+    // Dividir por saltos de línea
+    const lineas = texto.split("\n").filter((linea) => linea.trim() !== "");
+
+    return lineas.map((linea) => {
+      // Buscar el separador |
+      const separadorIndex = linea.indexOf("|");
+
+      if (separadorIndex === -1) {
+        // Si no hay separador, toda la línea es la descripción
+        return {
+          nombre: "",
+          descripcion: linea.trim(),
+        };
+      }
+
+      return {
+        nombre: linea.substring(0, separadorIndex).trim(),
+        descripcion: linea.substring(separadorIndex + 1).trim(),
+      };
+    });
+  }
+
+  /**
+   * Parsea el texto de recursos didácticos notas a un array estructurado
+   * Formato esperado: "Nombre recurso|Descripción\nOtro recurso|Otra descripción"
+   */
+  private parseRecursosDidacticosNotas(
+    texto: string,
+  ): Array<{ nombre: string; descripcion: string }> {
+    if (!texto || texto.trim() === "") return [];
+
+    // Dividir por saltos de línea
+    const lineas = texto.split("\n").filter((linea) => linea.trim() !== "");
+
+    return lineas.map((linea) => {
+      // Buscar el separador |
+      const separadorIndex = linea.indexOf("|");
+
+      if (separadorIndex === -1) {
+        // Si no hay separador, toda la línea es la descripción
+        return {
+          nombre: "",
+          descripcion: linea.trim(),
+        };
+      }
+
+      return {
+        nombre: linea.substring(0, separadorIndex).trim(),
+        descripcion: linea.substring(separadorIndex + 1).trim(),
+      };
+    });
   }
 
   // ---------- REVISIÓN ----------
@@ -1067,26 +1169,37 @@ export class SyllabusRepository extends BaseRepository {
 
   // Obtener evaluación por ID
   async getFormulaEvaluacion(id: number) {
-    const db = getDb();
-    if (!db) return null;
-
     // Obtener la fórmula principal
-    const [formula] = await db
+    const [formula] = await this.db
       .select({
         id: schema.formulaEvaluacionRegla.id,
-        name: schema.formulaEvaluacionRegla.nombreRegla,
+        silaboId: schema.formulaEvaluacionRegla.silaboId,
+        nombreRegla: schema.formulaEvaluacionRegla.nombreRegla,
         variableFinalCodigo: schema.formulaEvaluacionRegla.variableFinalCodigo,
         expresionFinal: schema.formulaEvaluacionRegla.expresionFinal,
+        activo: schema.formulaEvaluacionRegla.activo,
       })
       .from(schema.formulaEvaluacionRegla)
       .where(eq(schema.formulaEvaluacionRegla.id, id));
 
     if (!formula) return null;
 
-    // Obtener las subformulas
-    const subformulas = await db
+    // Obtener las variables ordenadas
+    const variables = await this.db
       .select({
-        id: schema.formulaEvaluacionSubformula.id,
+        codigo: schema.formulaEvaluacionVariable.codigo,
+        nombre: schema.formulaEvaluacionVariable.nombre,
+        tipo: schema.formulaEvaluacionVariable.tipo,
+        descripcion: schema.formulaEvaluacionVariable.descripcion,
+        orden: schema.formulaEvaluacionVariable.orden,
+      })
+      .from(schema.formulaEvaluacionVariable)
+      .where(eq(schema.formulaEvaluacionVariable.formulaEvaluacionReglaId, id))
+      .orderBy(asc(schema.formulaEvaluacionVariable.orden));
+
+    // Obtener las subformulas
+    const subformulas = await this.db
+      .select({
         variableCodigo: schema.formulaEvaluacionSubformula.variableCodigo,
         expresion: schema.formulaEvaluacionSubformula.expresion,
       })
@@ -1095,58 +1208,390 @@ export class SyllabusRepository extends BaseRepository {
         eq(schema.formulaEvaluacionSubformula.formulaEvaluacionReglaId, id),
       );
 
-    // Obtener todas las variables (leyendas)
-    const variables = await db
+    // Obtener los mapeos de variable a plan de evaluación
+    const variablePlanMappings = await this.db
       .select({
-        id: schema.formulaEvaluacionVariable.id,
-        formulaEvaluacionReglaId:
-          schema.formulaEvaluacionVariable.formulaEvaluacionReglaId,
-        codigo: schema.formulaEvaluacionVariable.codigo,
-        nombre: schema.formulaEvaluacionVariable.nombre,
+        variableCodigo: schema.formulaEvaluacionVariablePlan.variableCodigo,
+        planEvaluacionOfertaId:
+          schema.formulaEvaluacionVariablePlan.planEvaluacionOfertaId,
       })
-      .from(schema.formulaEvaluacionVariable)
-      .where(eq(schema.formulaEvaluacionVariable.formulaEvaluacionReglaId, id));
+      .from(schema.formulaEvaluacionVariablePlan)
+      .where(
+        eq(schema.formulaEvaluacionVariablePlan.formulaEvaluacionReglaId, id),
+      );
 
-    // Mapa rápido para buscar por código
-    const variableMap = new Map(variables.map((v) => [v.codigo, v.nombre]));
+    // Obtener los planes de evaluación relacionados
+    const planIds = variablePlanMappings.map((m) => m.planEvaluacionOfertaId);
+    let planesEvaluacion: any[] = [];
 
-    // Crear lista de leyendas (solo a nivel principal)
-    const legendPrincipal = variables.map((v) => ({
-      key: v.codigo,
-      description: v.nombre,
-    }));
+    if (planIds.length > 0) {
+      planesEvaluacion = await this.db
+        .select({
+          id: schema.planEvaluacionOferta.id,
+          componenteNombre: schema.planEvaluacionOferta.componenteNombre,
+          instrumentoNombre: schema.planEvaluacionOferta.instrumentoNombre,
+          semana: schema.planEvaluacionOferta.semana,
+          fecha: schema.planEvaluacionOferta.fecha,
+          instrucciones: schema.planEvaluacionOferta.instrucciones,
+          rubricaUrl: schema.planEvaluacionOferta.rubricaUrl,
+        })
+        .from(schema.planEvaluacionOferta)
+        .where(inArray(schema.planEvaluacionOferta.id, planIds));
+    }
 
-    // Estructura final de subfórmulas con name detectado automáticamente
-    const subformulasSimplified = subformulas.map((sf) => {
-      // Extraer la variable antes del "=" (ej: "PPR = (P1 + P2) / 2")
-      const variableMatch = sf.expresion.split("=")[0].trim();
-      const variableName = variableMap.get(variableMatch) || variableMatch;
+    return {
+      id: formula.id,
+      silaboId: formula.silaboId,
+      nombreRegla: formula.nombreRegla,
+      variableFinalCodigo: formula.variableFinalCodigo,
+      expresionFinal: formula.expresionFinal,
+      activo: formula.activo,
+      variables: variables.map((v) => ({
+        codigo: v.codigo,
+        nombre: v.nombre,
+        tipo: v.tipo || undefined,
+        descripcion: v.descripcion || undefined,
+        orden: v.orden || undefined,
+      })),
+      subformulas: subformulas.map((s) => ({
+        variableCodigo: s.variableCodigo,
+        expresion: s.expresion,
+      })),
+      variablePlanMappings: variablePlanMappings.map((m) => ({
+        variableCodigo: m.variableCodigo,
+        planEvaluacionOfertaId: m.planEvaluacionOfertaId,
+      })),
+      planesEvaluacion,
+    };
+  }
 
+  // Obtener fórmula de evaluación por ID de sílabo (la fórmula activa)
+  async getFormulaEvaluacionBySilaboId(silaboId: number) {
+    // Obtener la fórmula activa del sílabo
+    const [formula] = await this.db
+      .select({
+        id: schema.formulaEvaluacionRegla.id,
+        silaboId: schema.formulaEvaluacionRegla.silaboId,
+        nombreRegla: schema.formulaEvaluacionRegla.nombreRegla,
+        variableFinalCodigo: schema.formulaEvaluacionRegla.variableFinalCodigo,
+        expresionFinal: schema.formulaEvaluacionRegla.expresionFinal,
+        activo: schema.formulaEvaluacionRegla.activo,
+      })
+      .from(schema.formulaEvaluacionRegla)
+      .where(
+        and(
+          eq(schema.formulaEvaluacionRegla.silaboId, silaboId),
+          eq(schema.formulaEvaluacionRegla.activo, true),
+        ),
+      )
+      .limit(1);
+
+    if (!formula) return null;
+
+    // Reutilizar la lógica del método anterior
+    return this.getFormulaEvaluacion(formula.id);
+  }
+
+  // Crear nueva fórmula de evaluación
+  async createFormulaEvaluacion(data: {
+    silaboId: number;
+    nombreRegla: string;
+    variableFinalCodigo: string;
+    expresionFinal: string;
+    activo: boolean;
+    variables: Array<{
+      codigo: string;
+      nombre: string;
+      tipo?: string;
+      descripcion?: string;
+      orden?: number;
+    }>;
+    subformulas: Array<{
+      variableCodigo: string;
+      expresion: string;
+    }>;
+    variablePlanMappings: Array<{
+      variableCodigo: string;
+      planEvaluacionOfertaId: number;
+    }>;
+  }) {
+    return await this.db.transaction(async (tx) => {
+      // 1. Insertar la fórmula principal
+      const [formula] = await tx
+        .insert(schema.formulaEvaluacionRegla)
+        .values({
+          silaboId: data.silaboId,
+          nombreRegla: data.nombreRegla,
+          variableFinalCodigo: data.variableFinalCodigo,
+          expresionFinal: data.expresionFinal,
+          activo: data.activo,
+        })
+        .returning({
+          id: schema.formulaEvaluacionRegla.id,
+          silaboId: schema.formulaEvaluacionRegla.silaboId,
+          nombreRegla: schema.formulaEvaluacionRegla.nombreRegla,
+          variableFinalCodigo:
+            schema.formulaEvaluacionRegla.variableFinalCodigo,
+          expresionFinal: schema.formulaEvaluacionRegla.expresionFinal,
+          activo: schema.formulaEvaluacionRegla.activo,
+        });
+
+      // 2. Insertar las variables
+      if (data.variables.length > 0) {
+        await tx.insert(schema.formulaEvaluacionVariable).values(
+          data.variables.map((v, index) => ({
+            formulaEvaluacionReglaId: formula.id,
+            codigo: v.codigo,
+            nombre: v.nombre,
+            tipo: v.tipo || "",
+            descripcion: v.descripcion || null,
+            orden: v.orden !== undefined ? v.orden : index,
+          })),
+        );
+      }
+
+      // 3. Insertar las subfórmulas
+      if (data.subformulas.length > 0) {
+        await tx.insert(schema.formulaEvaluacionSubformula).values(
+          data.subformulas.map((s) => ({
+            formulaEvaluacionReglaId: formula.id,
+            variableCodigo: s.variableCodigo,
+            expresion: s.expresion,
+          })),
+        );
+      }
+
+      // 4. Insertar los mapeos de variable a plan
+      if (data.variablePlanMappings.length > 0) {
+        await tx.insert(schema.formulaEvaluacionVariablePlan).values(
+          data.variablePlanMappings.map((m) => ({
+            formulaEvaluacionReglaId: formula.id,
+            variableCodigo: m.variableCodigo,
+            planEvaluacionOfertaId: m.planEvaluacionOfertaId,
+          })),
+        );
+      }
+
+      // Retornar la estructura completa insertada
       return {
-        variable: variableMatch,
-        name: variableName, // nombre obtenido automáticamente
-        formula: sf.expresion.trim(),
+        id: formula.id,
+        silaboId: formula.silaboId,
+        nombreRegla: formula.nombreRegla,
+        variableFinalCodigo: formula.variableFinalCodigo,
+        expresionFinal: formula.expresionFinal,
+        activo: formula.activo,
+        variables: data.variables,
+        subformulas: data.subformulas,
+        variablePlanMappings: data.variablePlanMappings,
       };
     });
+  }
 
-    // Estructura final
-    const result = {
-      id: formula.id.toString(),
-      name: formula.name,
-      formula: formula.expresionFinal,
-      legend: legendPrincipal,
-      subformulas: subformulasSimplified,
-    };
+  // Actualizar fórmula de evaluación existente
+  async updateFormulaEvaluacion(
+    id: number,
+    data: {
+      nombreRegla?: string;
+      variableFinalCodigo?: string;
+      expresionFinal?: string;
+      activo?: boolean;
+      variables?: Array<{
+        codigo: string;
+        nombre: string;
+        tipo?: string;
+        descripcion?: string;
+        orden?: number;
+      }>;
+      subformulas?: Array<{
+        variableCodigo: string;
+        expresion: string;
+      }>;
+      variablePlanMappings?: Array<{
+        variableCodigo: string;
+        planEvaluacionOfertaId: number;
+      }>;
+    },
+  ) {
+    return await this.db.transaction(async (tx) => {
+      // 1. Actualizar la fórmula principal si hay campos para actualizar
+      const updateFields: any = {};
+      if (data.nombreRegla !== undefined)
+        updateFields.nombreRegla = data.nombreRegla;
+      if (data.variableFinalCodigo !== undefined)
+        updateFields.variableFinalCodigo = data.variableFinalCodigo;
+      if (data.expresionFinal !== undefined)
+        updateFields.expresionFinal = data.expresionFinal;
+      if (data.activo !== undefined) updateFields.activo = data.activo;
 
-    return result;
+      let updatedFormula;
+      if (Object.keys(updateFields).length > 0) {
+        [updatedFormula] = await tx
+          .update(schema.formulaEvaluacionRegla)
+          .set(updateFields)
+          .where(eq(schema.formulaEvaluacionRegla.id, id))
+          .returning({
+            id: schema.formulaEvaluacionRegla.id,
+            silaboId: schema.formulaEvaluacionRegla.silaboId,
+            nombreRegla: schema.formulaEvaluacionRegla.nombreRegla,
+            variableFinalCodigo:
+              schema.formulaEvaluacionRegla.variableFinalCodigo,
+            expresionFinal: schema.formulaEvaluacionRegla.expresionFinal,
+            activo: schema.formulaEvaluacionRegla.activo,
+          });
+      } else {
+        // Si no hay campos para actualizar, obtener la fórmula actual
+        [updatedFormula] = await tx
+          .select({
+            id: schema.formulaEvaluacionRegla.id,
+            silaboId: schema.formulaEvaluacionRegla.silaboId,
+            nombreRegla: schema.formulaEvaluacionRegla.nombreRegla,
+            variableFinalCodigo:
+              schema.formulaEvaluacionRegla.variableFinalCodigo,
+            expresionFinal: schema.formulaEvaluacionRegla.expresionFinal,
+            activo: schema.formulaEvaluacionRegla.activo,
+          })
+          .from(schema.formulaEvaluacionRegla)
+          .where(eq(schema.formulaEvaluacionRegla.id, id));
+      }
+
+      if (!updatedFormula) {
+        throw new Error(`Fórmula con ID ${id} no encontrada`);
+      }
+
+      // 2. Si se proporcionan nuevas variables, reemplazarlas
+      if (data.variables !== undefined) {
+        // Eliminar variables existentes
+        await tx
+          .delete(schema.formulaEvaluacionVariable)
+          .where(
+            eq(schema.formulaEvaluacionVariable.formulaEvaluacionReglaId, id),
+          );
+
+        // Insertar nuevas variables
+        if (data.variables.length > 0) {
+          await tx.insert(schema.formulaEvaluacionVariable).values(
+            data.variables.map((v, index) => ({
+              formulaEvaluacionReglaId: id,
+              codigo: v.codigo,
+              nombre: v.nombre,
+              tipo: v.tipo || "",
+              descripcion: v.descripcion || null,
+              orden: v.orden !== undefined ? v.orden : index,
+            })),
+          );
+        }
+      }
+
+      // 3. Si se proporcionan nuevas subfórmulas, reemplazarlas
+      if (data.subformulas !== undefined) {
+        // Eliminar subfórmulas existentes
+        await tx
+          .delete(schema.formulaEvaluacionSubformula)
+          .where(
+            eq(schema.formulaEvaluacionSubformula.formulaEvaluacionReglaId, id),
+          );
+
+        // Insertar nuevas subfórmulas
+        if (data.subformulas.length > 0) {
+          await tx.insert(schema.formulaEvaluacionSubformula).values(
+            data.subformulas.map((s) => ({
+              formulaEvaluacionReglaId: id,
+              variableCodigo: s.variableCodigo,
+              expresion: s.expresion,
+            })),
+          );
+        }
+      }
+
+      // 4. Si se proporcionan nuevos mapeos, reemplazarlos
+      if (data.variablePlanMappings !== undefined) {
+        // Eliminar mapeos existentes
+        await tx
+          .delete(schema.formulaEvaluacionVariablePlan)
+          .where(
+            eq(
+              schema.formulaEvaluacionVariablePlan.formulaEvaluacionReglaId,
+              id,
+            ),
+          );
+
+        // Insertar nuevos mapeos
+        if (data.variablePlanMappings.length > 0) {
+          await tx.insert(schema.formulaEvaluacionVariablePlan).values(
+            data.variablePlanMappings.map((m) => ({
+              formulaEvaluacionReglaId: id,
+              variableCodigo: m.variableCodigo,
+              planEvaluacionOfertaId: m.planEvaluacionOfertaId,
+            })),
+          );
+        }
+      }
+
+      // Obtener y retornar la estructura completa actualizada
+      const finalVariables = await tx
+        .select({
+          codigo: schema.formulaEvaluacionVariable.codigo,
+          nombre: schema.formulaEvaluacionVariable.nombre,
+          tipo: schema.formulaEvaluacionVariable.tipo,
+          descripcion: schema.formulaEvaluacionVariable.descripcion,
+          orden: schema.formulaEvaluacionVariable.orden,
+        })
+        .from(schema.formulaEvaluacionVariable)
+        .where(
+          eq(schema.formulaEvaluacionVariable.formulaEvaluacionReglaId, id),
+        )
+        .orderBy(asc(schema.formulaEvaluacionVariable.orden));
+
+      const finalSubformulas = await tx
+        .select({
+          variableCodigo: schema.formulaEvaluacionSubformula.variableCodigo,
+          expresion: schema.formulaEvaluacionSubformula.expresion,
+        })
+        .from(schema.formulaEvaluacionSubformula)
+        .where(
+          eq(schema.formulaEvaluacionSubformula.formulaEvaluacionReglaId, id),
+        );
+
+      const finalMappings = await tx
+        .select({
+          variableCodigo: schema.formulaEvaluacionVariablePlan.variableCodigo,
+          planEvaluacionOfertaId:
+            schema.formulaEvaluacionVariablePlan.planEvaluacionOfertaId,
+        })
+        .from(schema.formulaEvaluacionVariablePlan)
+        .where(
+          eq(schema.formulaEvaluacionVariablePlan.formulaEvaluacionReglaId, id),
+        );
+
+      return {
+        id: updatedFormula.id,
+        silaboId: updatedFormula.silaboId,
+        nombreRegla: updatedFormula.nombreRegla,
+        variableFinalCodigo: updatedFormula.variableFinalCodigo,
+        expresionFinal: updatedFormula.expresionFinal,
+        activo: updatedFormula.activo,
+        variables: finalVariables.map((v) => ({
+          codigo: v.codigo,
+          nombre: v.nombre,
+          tipo: v.tipo || undefined,
+          descripcion: v.descripcion || undefined,
+          orden: v.orden || undefined,
+        })),
+        subformulas: finalSubformulas.map((s) => ({
+          variableCodigo: s.variableCodigo,
+          expresion: s.expresion,
+        })),
+        variablePlanMappings: finalMappings.map((m) => ({
+          variableCodigo: m.variableCodigo,
+          planEvaluacionOfertaId: m.planEvaluacionOfertaId,
+        })),
+      };
+    });
   }
 
   // Actualizar estrategias metodológicas por ID
   async putEstrategiasMetodologicas(id: number, estrategias: string) {
-    const db = getDb();
-    if (!db) return null;
-
-    const result = await db
+    const result = await this.db
       .update(schema.silabo)
       .set({ estrategiasMetodologicas: estrategias })
       .where(eq(schema.silabo.id, id))
@@ -1157,10 +1602,7 @@ export class SyllabusRepository extends BaseRepository {
 
   // Actualizar recursos didácticos por ID
   async putRecursosDidacticosNotas(id: number, recursos: string) {
-    const db = getDb();
-    if (!db) return null;
-
-    const result = await db
+    const result = await this.db
       .update(schema.silabo)
       .set({ recursosDidacticosNotas: recursos })
       .where(eq(schema.silabo.id, id))
@@ -1171,10 +1613,7 @@ export class SyllabusRepository extends BaseRepository {
 
   // Crear estrategias metodológicas
   async postEstrategiasMetodologicas(estrategias: string) {
-    const db = getDb();
-    if (!db) return null;
-
-    const result = await db
+    const result = await this.db
       .insert(schema.silabo)
       .values({
         estrategiasMetodologicas: estrategias,
@@ -1189,10 +1628,7 @@ export class SyllabusRepository extends BaseRepository {
 
   // Crear recursos didácticos
   async postRecursosDidacticosNotas(recursos: string) {
-    const db = getDb();
-    if (!db) return null;
-
-    const result = await db
+    const result = await this.db
       .insert(schema.silabo)
       .values({
         recursosDidacticosNotas: recursos,
@@ -1264,12 +1700,46 @@ export class SyllabusRepository extends BaseRepository {
       .orderBy(schema.silaboUnidad.numero);
   }
 
+  async findUnidadById(silaboId: number, unidadId: number) {
+    const [unidad] = await this.db
+      .select()
+      .from(schema.silaboUnidad)
+      .where(
+        and(
+          eq(schema.silaboUnidad.id, unidadId),
+          eq(schema.silaboUnidad.silaboId, silaboId),
+        ),
+      );
+
+    return unidad || null;
+  }
+
+  async findSemanasByUnidadId(unidadId: number) {
+    return await this.db
+      .select()
+      .from(schema.silaboUnidadSemana)
+      .where(eq(schema.silaboUnidadSemana.silaboUnidadId, unidadId))
+      .orderBy(schema.silaboUnidadSemana.semana);
+  }
+
   async insertUnidad(silaboId: number, data: any) {
     const result = await this.db
       .insert(schema.silaboUnidad)
       .values({
         silaboId,
         ...data,
+      })
+      .returning();
+
+    return result[0];
+  }
+
+  async insertUnidadSemana(unidadId: number, semanaData: any) {
+    const result = await this.db
+      .insert(schema.silaboUnidadSemana)
+      .values({
+        silaboUnidadId: unidadId,
+        ...semanaData,
       })
       .returning();
 
@@ -1289,6 +1759,22 @@ export class SyllabusRepository extends BaseRepository {
       .returning();
 
     return result[0] || null;
+  }
+
+  async updateUnidadSemana(semanaId: number, semanaData: any) {
+    const result = await this.db
+      .update(schema.silaboUnidadSemana)
+      .set(semanaData)
+      .where(eq(schema.silaboUnidadSemana.id, semanaId))
+      .returning();
+
+    return result[0] || null;
+  }
+
+  async deleteUnidadSemanasByUnidadId(unidadId: number) {
+    await this.db
+      .delete(schema.silaboUnidadSemana)
+      .where(eq(schema.silaboUnidadSemana.silaboUnidadId, unidadId));
   }
 
   async deleteUnidad(silaboId: number, unidadId: number) {

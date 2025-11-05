@@ -127,6 +127,24 @@ export class SyllabusController implements Updatable {
     return { status: 200, jsonBody: result };
   }
 
+  /**
+   * PUT /api/syllabus/{id}/analizando
+   * Cambiar estado del sílabo a "ANALIZANDO"
+   */
+  @route("/{id}/analizando", "PUT")
+  async setAnalizando(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return response.badRequest("ID de sílabo inválido");
+    }
+
+    const result = await syllabusService.setAnalizandoStatus(id);
+    return response.ok(result.message, result);
+  }
+
   // ========================================
   // SECCIÓN I: DATOS GENERALES
   // ========================================
@@ -472,7 +490,7 @@ export class SyllabusController implements Updatable {
 
   /**
    * GET /api/syllabus/{id}/unidades
-   * Listar unidades del sílabo
+   * Listar todas las unidades del sílabo con sus semanas
    */
   @route("/{id}/unidades", "GET")
   async getUnidades(
@@ -490,8 +508,29 @@ export class SyllabusController implements Updatable {
   }
 
   /**
+   * GET /api/syllabus/{id}/unidades/{unidadId}
+   * Obtener una unidad específica con todas sus semanas
+   */
+  @route("/{id}/unidades/{unidadId}", "GET")
+  async getUnidadById(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const unidadId = Number(req.params.unidadId);
+
+    if (Number.isNaN(id) || Number.isNaN(unidadId)) {
+      return response.badRequest("IDs inválidos");
+    }
+
+    const unidad = await syllabusService.getUnidadById(id, unidadId);
+
+    return response.ok("Unidad obtenida correctamente", unidad);
+  }
+
+  /**
    * POST /api/syllabus/{id}/unidades
-   * Crear una nueva unidad
+   * Crear una nueva unidad con sus semanas
    */
   @route("/{id}/unidades", "POST")
   async createUnidad(
@@ -523,7 +562,7 @@ export class SyllabusController implements Updatable {
 
   /**
    * PUT /api/syllabus/{id}/unidades/{unidadId}
-   * Actualizar una unidad existente
+   * Actualizar una unidad existente con sus semanas
    */
   @route("/{id}/unidades/{unidadId}", "PUT")
   async updateUnidad(
@@ -561,7 +600,7 @@ export class SyllabusController implements Updatable {
 
   /**
    * DELETE /api/syllabus/{id}/unidades/{unidadId}
-   * Eliminar una unidad
+   * Eliminar una unidad y todas sus semanas (CASCADE)
    */
   @route("/{id}/unidades/{unidadId}", "DELETE")
   async deleteUnidad(
@@ -717,21 +756,79 @@ export class SyllabusController implements Updatable {
 
   /**
    * GET /api/syllabus/{id}/formula_evaluacion
-   * Obtener fórmula de evaluación
+   * Obtener fórmula de evaluación activa del sílabo
    */
   @route("/{id}/formula_evaluacion", "GET")
   async getFormulaEvaluacion(
     req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const silaboId = Number(req.params.id);
+    if (Number.isNaN(silaboId)) {
       return response.badRequest("ID de sílabo inválido");
     }
 
-    const result = await syllabusService.getFormulaEvaluacion(id);
+    const result =
+      await syllabusService.getFormulaEvaluacionBySilaboId(silaboId);
 
     return response.ok("Fórmula de evaluación obtenida correctamente", result);
+  }
+
+  /**
+   * POST /api/syllabus/formula_evaluacion
+   * Crear nueva fórmula de evaluación
+   */
+  @route("/formula_evaluacion", "POST")
+  async createFormulaEvaluacion(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const body = (await req.json()) as any;
+
+    try {
+      const result = await syllabusService.createFormulaEvaluacion(body);
+      return response.created(
+        "Fórmula de evaluación creada correctamente",
+        result,
+      );
+    } catch (error) {
+      if (error instanceof AppError) {
+        return error.toHttpResponse();
+      }
+      console.error("Error al crear fórmula de evaluación:", error);
+      return response.serverError("Error al crear fórmula de evaluación");
+    }
+  }
+
+  /**
+   * PUT /api/syllabus/{id}/formula_evaluacion
+   * Actualizar fórmula de evaluación existente
+   */
+  @route("/{id}/formula_evaluacion", "PUT")
+  async updateFormulaEvaluacion(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      return response.badRequest("ID de fórmula inválido");
+    }
+
+    const body = (await req.json()) as any;
+
+    try {
+      const result = await syllabusService.updateFormulaEvaluacion(id, body);
+      return response.ok(
+        "Fórmula de evaluación actualizada correctamente",
+        result,
+      );
+    } catch (error) {
+      if (error instanceof AppError) {
+        return error.toHttpResponse();
+      }
+      console.error("Error al actualizar fórmula de evaluación:", error);
+      return response.serverError("Error al actualizar fórmula de evaluación");
+    }
   }
 
   // ========================================
