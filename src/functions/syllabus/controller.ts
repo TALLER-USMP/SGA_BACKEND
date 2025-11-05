@@ -717,21 +717,79 @@ export class SyllabusController implements Updatable {
 
   /**
    * GET /api/syllabus/{id}/formula_evaluacion
-   * Obtener fórmula de evaluación
+   * Obtener fórmula de evaluación activa del sílabo
    */
   @route("/{id}/formula_evaluacion", "GET")
   async getFormulaEvaluacion(
     req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const id = Number(req.params.id);
-    if (Number.isNaN(id)) {
+    const silaboId = Number(req.params.id);
+    if (Number.isNaN(silaboId)) {
       return response.badRequest("ID de sílabo inválido");
     }
 
-    const result = await syllabusService.getFormulaEvaluacion(id);
+    const result =
+      await syllabusService.getFormulaEvaluacionBySilaboId(silaboId);
 
     return response.ok("Fórmula de evaluación obtenida correctamente", result);
+  }
+
+  /**
+   * POST /api/syllabus/formula_evaluacion
+   * Crear nueva fórmula de evaluación
+   */
+  @route("/formula_evaluacion", "POST")
+  async createFormulaEvaluacion(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const body = (await req.json()) as any;
+
+    try {
+      const result = await syllabusService.createFormulaEvaluacion(body);
+      return response.created(
+        "Fórmula de evaluación creada correctamente",
+        result,
+      );
+    } catch (error) {
+      if (error instanceof AppError) {
+        return error.toHttpResponse();
+      }
+      console.error("Error al crear fórmula de evaluación:", error);
+      return response.serverError("Error al crear fórmula de evaluación");
+    }
+  }
+
+  /**
+   * PUT /api/syllabus/{id}/formula_evaluacion
+   * Actualizar fórmula de evaluación existente
+   */
+  @route("/{id}/formula_evaluacion", "PUT")
+  async updateFormulaEvaluacion(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      return response.badRequest("ID de fórmula inválido");
+    }
+
+    const body = (await req.json()) as any;
+
+    try {
+      const result = await syllabusService.updateFormulaEvaluacion(id, body);
+      return response.ok(
+        "Fórmula de evaluación actualizada correctamente",
+        result,
+      );
+    } catch (error) {
+      if (error instanceof AppError) {
+        return error.toHttpResponse();
+      }
+      console.error("Error al actualizar fórmula de evaluación:", error);
+      return response.serverError("Error al actualizar fórmula de evaluación");
+    }
   }
 
   // ========================================

@@ -9,6 +9,11 @@ import {
   UnidadUpdate,
   DatosGeneralesUpdate,
   DesaprobarSilabo,
+  FormulaEvaluacionCompleteSchema,
+  FormulaEvaluacionCreateSchema,
+  FormulaEvaluacionUpdateSchema,
+  FormulaEvaluacionCreate,
+  FormulaEvaluacionUpdate,
 } from "./types";
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
@@ -460,7 +465,109 @@ export class SyllabusService {
 
   async getFormulaEvaluacion(id: number) {
     const formula = await syllabusRepository.getFormulaEvaluacion(id);
-    return formula;
+
+    if (!formula) {
+      throw new AppError(
+        "Fórmula no encontrada",
+        "NOT_FOUND",
+        "La fórmula de evaluación solicitada no existe",
+      );
+    }
+
+    // Validar la estructura con Zod
+    try {
+      return FormulaEvaluacionCompleteSchema.parse(formula);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "Error de validación",
+          "BAD_REQUEST",
+          "Error en la estructura de fórmula de evaluación: " +
+            error.issues.map((e) => e.message).join(", "),
+        );
+      }
+      throw error;
+    }
+  }
+
+  async getFormulaEvaluacionBySilaboId(silaboId: number) {
+    const formula =
+      await syllabusRepository.getFormulaEvaluacionBySilaboId(silaboId);
+
+    if (!formula) {
+      throw new AppError(
+        "Fórmula no encontrada",
+        "NOT_FOUND",
+        "No se encontró una fórmula activa para este sílabo",
+      );
+    }
+
+    // Validar la estructura con Zod
+    try {
+      return FormulaEvaluacionCompleteSchema.parse(formula);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "Error de validación",
+          "BAD_REQUEST",
+          "Error en la estructura de fórmula de evaluación: " +
+            error.issues.map((e) => e.message).join(", "),
+        );
+      }
+      throw error;
+    }
+  }
+
+  async createFormulaEvaluacion(data: FormulaEvaluacionCreate) {
+    // Validar datos con Zod
+    try {
+      const validatedData = FormulaEvaluacionCreateSchema.parse(data);
+
+      // Crear la fórmula en el repositorio
+      const formula =
+        await syllabusRepository.createFormulaEvaluacion(validatedData);
+
+      return formula;
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "Error de validación",
+          "BAD_REQUEST",
+          "Error en los datos de fórmula: " +
+            error.issues
+              .map((e) => `${e.path.join(".")}: ${e.message}`)
+              .join(", "),
+        );
+      }
+      throw error;
+    }
+  }
+
+  async updateFormulaEvaluacion(id: number, data: FormulaEvaluacionUpdate) {
+    // Validar datos con Zod
+    try {
+      const validatedData = FormulaEvaluacionUpdateSchema.parse(data);
+
+      // Actualizar la fórmula en el repositorio
+      const formula = await syllabusRepository.updateFormulaEvaluacion(
+        id,
+        validatedData,
+      );
+
+      return formula;
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new AppError(
+          "Error de validación",
+          "BAD_REQUEST",
+          "Error en los datos de actualización: " +
+            error.issues
+              .map((e) => `${e.path.join(".")}: ${e.message}`)
+              .join(", "),
+        );
+      }
+      throw error;
+    }
   }
 
   async putEstrategiasMetodologicas(
