@@ -649,6 +649,25 @@ export class SyllabusService {
     };
   }
 
+  // Cambiar estado del sílabo a "ANALIZANDO"
+  async setAnalizandoStatus(id: number) {
+    // Verificar que el sílabo existe
+    const current = await syllabusRepository.getStateById(id);
+    if (!current) {
+      throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+    }
+
+    // Actualizar el estado a "ANALIZANDO"
+    await syllabusRepository.updateReviewStatus(id, "ANALIZANDO");
+
+    return {
+      ok: true,
+      message: "Estado del sílabo cambiado a ANALIZANDO correctamente",
+      estadoAnterior: current.estadoRevision,
+      estadoNuevo: "ANALIZANDO",
+    };
+  }
+
   // ---------- APORTE ----------
   async createAporte(data: ContributionCreateType) {
     const result = await syllabusRepository.createContribution(data);
@@ -796,7 +815,36 @@ export class SyllabusService {
 
   // ---------- SECCIÓN IV: UNIDADES ----------
   async getUnidades(silaboId: number) {
-    return syllabusRepository.findUnidadesBySilaboId(silaboId);
+    const unidades = await syllabusRepository.findUnidadesBySilaboId(silaboId);
+
+    // Para cada unidad, obtener sus semanas
+    const unidadesConSemanas = await Promise.all(
+      unidades.map(async (unidad) => {
+        const semanas = await syllabusRepository.findSemanasByUnidadId(
+          unidad.id,
+        );
+        return {
+          ...unidad,
+          semanas,
+        };
+      }),
+    );
+
+    return unidadesConSemanas;
+  }
+
+  async getUnidadById(silaboId: number, unidadId: number) {
+    const unidad = await syllabusRepository.findUnidadById(silaboId, unidadId);
+    if (!unidad) {
+      throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
+    }
+
+    const semanas = await syllabusRepository.findSemanasByUnidadId(unidad.id);
+
+    return {
+      ...unidad,
+      semanas,
+    };
   }
 
   async createUnidad(silaboId: number, data: UnidadCreate) {
@@ -804,22 +852,68 @@ export class SyllabusService {
     if (!syllabus) {
       throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
     }
-    return syllabusRepository.insertUnidad(silaboId, data);
+
+    const { semanas, ...unidadData } = data;
+    const unidad = await syllabusRepository.insertUnidad(silaboId, unidadData);
+
+    // Si hay semanas, crearlas
+    if (semanas && semanas.length > 0) {
+      await Promise.all(
+        semanas.map((semana) =>
+          syllabusRepository.insertUnidadSemana(unidad.id, semana),
+        ),
+      );
+    }
+
+    // Retornar unidad con sus semanas
+    const semanasCreadas = await syllabusRepository.findSemanasByUnidadId(
+      unidad.id,
+    );
+    return {
+      ...unidad,
+      semanas: semanasCreadas,
+    };
   }
 
   async updateUnidad(silaboId: number, unidadId: number, data: UnidadUpdate) {
-    const result = await syllabusRepository.updateUnidad(
+    const { semanas, ...unidadData } = data;
+
+    // Actualizar datos de la unidad
+    const unidad = await syllabusRepository.updateUnidad(
       silaboId,
       unidadId,
-      data,
+      unidadData,
     );
-    if (!result) {
+
+    if (!unidad) {
       throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");
     }
-    return result;
+
+    // Si se proporcionan semanas, actualizar/crear/eliminar según corresponda
+    if (semanas !== undefined) {
+      // Eliminar todas las semanas existentes y crear las nuevas
+      await syllabusRepository.deleteUnidadSemanasByUnidadId(unidadId);
+
+      if (semanas.length > 0) {
+        await Promise.all(
+          semanas.map((semana) =>
+            syllabusRepository.insertUnidadSemana(unidadId, semana),
+          ),
+        );
+      }
+    }
+
+    // Retornar unidad actualizada con sus semanas
+    const semanasActualizadas =
+      await syllabusRepository.findSemanasByUnidadId(unidadId);
+    return {
+      ...unidad,
+      semanas: semanasActualizadas,
+    };
   }
 
   async deleteUnidad(silaboId: number, unidadId: number) {
+    // Las semanas se eliminan automáticamente por CASCADE en la BD
     const deleted = await syllabusRepository.deleteUnidad(silaboId, unidadId);
     if (!deleted) {
       throw new AppError("NotFound", "NOT_FOUND", "Unidad no encontrada");

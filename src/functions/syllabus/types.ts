@@ -336,6 +336,23 @@ export type FuenteUpdate = z.infer<typeof FuenteUpdateSchema>;
 /* ========================================
    SECCIÓN IV: UNIDADES (PROGRAMACIÓN DE CONTENIDOS)
    ======================================== */
+
+// Schema para las semanas de una unidad
+export const UnidadSemanaSchema = z.object({
+  id: z.number().int().optional(),
+  silaboUnidadId: z.number().int().optional(),
+  semana: z.number().int().min(1).max(16),
+  contenidosConceptuales: z.string().optional().nullable(),
+  contenidosProcedimentales: z.string().optional().nullable(),
+  actividadesAprendizaje: z.string().optional().nullable(),
+  horasLectivasTeoria: z.number().int().nonnegative().default(0),
+  horasLectivasPractica: z.number().int().nonnegative().default(0),
+  horasNoLectivasTeoria: z.number().int().nonnegative().default(0),
+  horasNoLectivasPractica: z.number().int().nonnegative().default(0),
+  creadoEn: z.string().optional(),
+  actualizadoEn: z.string().optional(),
+});
+
 export const UnidadCreateSchema = z.object({
   numero: z.number().int().positive(),
   titulo: z.string().min(1, "El título es obligatorio"),
@@ -349,12 +366,36 @@ export const UnidadCreateSchema = z.object({
   horasLectivasPractica: z.number().int().nonnegative().optional(),
   horasNoLectivasTeoria: z.number().int().nonnegative().optional(),
   horasNoLectivasPractica: z.number().int().nonnegative().optional(),
+  semanas: z.array(UnidadSemanaSchema).optional(),
 });
 
 export const UnidadUpdateSchema = UnidadCreateSchema.partial();
 
+// Schema para respuesta completa de unidad (GET)
+export const UnidadCompleteSchema = z.object({
+  id: z.number().int(),
+  silaboId: z.number().int(),
+  numero: z.number().int(),
+  titulo: z.string(),
+  capacidadesText: z.string().nullable().optional(),
+  semanaInicio: z.number().int().nullable().optional(),
+  semanaFin: z.number().int().nullable().optional(),
+  contenidosConceptuales: z.string().nullable().optional(),
+  contenidosProcedimentales: z.string().nullable().optional(),
+  actividadesAprendizaje: z.string().nullable().optional(),
+  horasLectivasTeoria: z.number().int().nullable().optional(),
+  horasLectivasPractica: z.number().int().nullable().optional(),
+  horasNoLectivasTeoria: z.number().int().nullable().optional(),
+  horasNoLectivasPractica: z.number().int().nullable().optional(),
+  creadoEn: z.string().optional(),
+  actualizadoEn: z.string().optional(),
+  semanas: z.array(UnidadSemanaSchema),
+});
+
+export type UnidadSemana = z.infer<typeof UnidadSemanaSchema>;
 export type UnidadCreate = z.infer<typeof UnidadCreateSchema>;
 export type UnidadUpdate = z.infer<typeof UnidadUpdateSchema>;
+export type UnidadComplete = z.infer<typeof UnidadCompleteSchema>;
 
 /* ========================================
    SECCIÓN I: DATOS GENERALES (UPDATE)

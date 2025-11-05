@@ -127,6 +127,24 @@ export class SyllabusController implements Updatable {
     return { status: 200, jsonBody: result };
   }
 
+  /**
+   * PUT /api/syllabus/{id}/analizando
+   * Cambiar estado del sílabo a "ANALIZANDO"
+   */
+  @route("/{id}/analizando", "PUT")
+  async setAnalizando(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return response.badRequest("ID de sílabo inválido");
+    }
+
+    const result = await syllabusService.setAnalizandoStatus(id);
+    return response.ok(result.message, result);
+  }
+
   // ========================================
   // SECCIÓN I: DATOS GENERALES
   // ========================================
@@ -472,7 +490,7 @@ export class SyllabusController implements Updatable {
 
   /**
    * GET /api/syllabus/{id}/unidades
-   * Listar unidades del sílabo
+   * Listar todas las unidades del sílabo con sus semanas
    */
   @route("/{id}/unidades", "GET")
   async getUnidades(
@@ -490,8 +508,29 @@ export class SyllabusController implements Updatable {
   }
 
   /**
+   * GET /api/syllabus/{id}/unidades/{unidadId}
+   * Obtener una unidad específica con todas sus semanas
+   */
+  @route("/{id}/unidades/{unidadId}", "GET")
+  async getUnidadById(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const unidadId = Number(req.params.unidadId);
+
+    if (Number.isNaN(id) || Number.isNaN(unidadId)) {
+      return response.badRequest("IDs inválidos");
+    }
+
+    const unidad = await syllabusService.getUnidadById(id, unidadId);
+
+    return response.ok("Unidad obtenida correctamente", unidad);
+  }
+
+  /**
    * POST /api/syllabus/{id}/unidades
-   * Crear una nueva unidad
+   * Crear una nueva unidad con sus semanas
    */
   @route("/{id}/unidades", "POST")
   async createUnidad(
@@ -523,7 +562,7 @@ export class SyllabusController implements Updatable {
 
   /**
    * PUT /api/syllabus/{id}/unidades/{unidadId}
-   * Actualizar una unidad existente
+   * Actualizar una unidad existente con sus semanas
    */
   @route("/{id}/unidades/{unidadId}", "PUT")
   async updateUnidad(
@@ -561,7 +600,7 @@ export class SyllabusController implements Updatable {
 
   /**
    * DELETE /api/syllabus/{id}/unidades/{unidadId}
-   * Eliminar una unidad
+   * Eliminar una unidad y todas sus semanas (CASCADE)
    */
   @route("/{id}/unidades/{unidadId}", "DELETE")
   async deleteUnidad(

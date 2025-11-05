@@ -1,5 +1,5 @@
 import { getDb } from "../../db";
-import { eq, and, sql, asc } from "drizzle-orm";
+import { eq, and, sql, asc, inArray } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import {
@@ -686,12 +686,28 @@ export class SyllabusRepository extends BaseRepository {
       .where(eq(schema.silaboResultadoAprendizaje.silaboId, id))
       .orderBy(schema.silaboResultadoAprendizaje.orden);
 
-    // 6. Unidades Didácticas
+    // 6. Unidades Didácticas CON SEMANAS
     const unidades = await this.db
       .select()
       .from(schema.silaboUnidad)
       .where(eq(schema.silaboUnidad.silaboId, id))
       .orderBy(schema.silaboUnidad.numero);
+
+    // Para cada unidad, obtener sus semanas
+    const unidadesConSemanas = await Promise.all(
+      unidades.map(async (unidad) => {
+        const semanas = await this.db
+          .select()
+          .from(schema.silaboUnidadSemana)
+          .where(eq(schema.silaboUnidadSemana.silaboUnidadId, unidad.id))
+          .orderBy(schema.silaboUnidadSemana.semana);
+
+        return {
+          ...unidad,
+          semanas,
+        };
+      }),
+    );
 
     // 7. Estrategias Metodológicas (del silabo principal)
     const estrategiasResult = await this.db
@@ -700,6 +716,11 @@ export class SyllabusRepository extends BaseRepository {
       .where(eq(silabo.id, id));
 
     // 8. Recursos Didácticos
+    const recursosDidacticosNotasResult = await this.db
+      .select({ notas: silabo.recursosDidacticosNotas })
+      .from(silabo)
+      .where(eq(silabo.id, id));
+
     const recursos = await this.db
       .select({
         id: schema.silaboRecursoDidactico.id,
@@ -725,11 +746,9 @@ export class SyllabusRepository extends BaseRepository {
       .where(eq(schema.planEvaluacionOferta.silaboId, id))
       .orderBy(schema.planEvaluacionOferta.semana);
 
-    // Formula de Evaluación
-    const formulaEvaluacion = await this.db
-      .select({
-        expresion: schema.formulaEvaluacionRegla.expresionFinal,
-      })
+    // Formula de Evaluación COMPLETA (usando el método existente)
+    const formulaEvaluacionResult = await this.db
+      .select({ id: schema.formulaEvaluacionRegla.id })
       .from(schema.formulaEvaluacionRegla)
       .where(
         and(
@@ -738,6 +757,13 @@ export class SyllabusRepository extends BaseRepository {
         ),
       )
       .limit(1);
+
+    let formulaEvaluacionCompleta = null;
+    if (formulaEvaluacionResult.length > 0) {
+      formulaEvaluacionCompleta = await this.getFormulaEvaluacion(
+        formulaEvaluacionResult[0].id,
+      );
+    }
 
     // 10. Fuentes de Información
     const fuentes = await this.db
@@ -751,6 +777,7 @@ export class SyllabusRepository extends BaseRepository {
         ciudad: schema.silaboFuente.ciudad,
         isbn: schema.silaboFuente.isbnIssn,
         url: schema.silaboFuente.doiUrl,
+        notas: schema.silaboFuente.notas,
       })
       .from(schema.silaboFuente)
       .where(eq(schema.silaboFuente.silaboId, id));
@@ -758,6 +785,7 @@ export class SyllabusRepository extends BaseRepository {
     // 11. Aportes a Resultados del Programa
     const aportes = await this.db
       .select({
+        silaboId: schema.silaboAporteResultadoPrograma.silaboId,
         resultadoCodigo:
           schema.silaboAporteResultadoPrograma.resultadoProgramaCodigo,
         resultadoDescripcion:
@@ -767,27 +795,101 @@ export class SyllabusRepository extends BaseRepository {
       .from(schema.silaboAporteResultadoPrograma)
       .where(eq(schema.silaboAporteResultadoPrograma.silaboId, id));
 
+    // Parsear estrategias metodológicas
+    const estrategiasTexto = estrategiasResult[0]?.estrategias || null;
+    const estrategiasMetodologicas = estrategiasTexto
+      ? this.parseEstrategiasMetodologicas(estrategiasTexto)
+      : null;
+
+    // Parsear recursos didácticos notas
+    const recursosNotasTexto = recursosDidacticosNotasResult[0]?.notas || null;
+    const recursosNotas = recursosNotasTexto
+      ? this.parseRecursosDidacticosNotas(recursosNotasTexto)
+      : null;
+
     return {
-      datosGenerales: {
-        ...datosGenerales,
-        areaCurricular: null, // Si no está en DB, null
-      },
+      datosGenerales,
       sumilla: sumillaResult[0]?.contenido || null,
       competenciasCurso: competencias,
       componentesConceptuales,
       componentesProcedimentales,
       componentesActitudinales,
       resultadosAprendizaje,
-      unidadesDidacticas: unidades,
-      estrategiasMetodologicas: estrategiasResult[0]?.estrategias || null,
-      recursosDidacticos: recursos,
+      unidadesDidacticas: unidadesConSemanas,
+      estrategiasMetodologicas,
+      recursosDidacticos: {
+        notas: recursosNotas,
+        recursos,
+      },
       evaluacionAprendizaje: {
         planEvaluacion,
-        formulaEvaluacion: formulaEvaluacion[0]?.expresion || null,
+        formulaEvaluacion: formulaEvaluacionCompleta,
       },
       fuentes,
       aportesResultadosPrograma: aportes,
     };
+  }
+
+  /**
+   * Parsea el texto de estrategias metodológicas a un array estructurado
+   * Formato esperado: "Nombre método|Descripción\nOtro método|Otra descripción"
+   */
+  private parseEstrategiasMetodologicas(
+    texto: string,
+  ): Array<{ nombre: string; descripcion: string }> {
+    if (!texto || texto.trim() === "") return [];
+
+    // Dividir por saltos de línea
+    const lineas = texto.split("\n").filter((linea) => linea.trim() !== "");
+
+    return lineas.map((linea) => {
+      // Buscar el separador |
+      const separadorIndex = linea.indexOf("|");
+
+      if (separadorIndex === -1) {
+        // Si no hay separador, toda la línea es la descripción
+        return {
+          nombre: "",
+          descripcion: linea.trim(),
+        };
+      }
+
+      return {
+        nombre: linea.substring(0, separadorIndex).trim(),
+        descripcion: linea.substring(separadorIndex + 1).trim(),
+      };
+    });
+  }
+
+  /**
+   * Parsea el texto de recursos didácticos notas a un array estructurado
+   * Formato esperado: "Nombre recurso|Descripción\nOtro recurso|Otra descripción"
+   */
+  private parseRecursosDidacticosNotas(
+    texto: string,
+  ): Array<{ nombre: string; descripcion: string }> {
+    if (!texto || texto.trim() === "") return [];
+
+    // Dividir por saltos de línea
+    const lineas = texto.split("\n").filter((linea) => linea.trim() !== "");
+
+    return lineas.map((linea) => {
+      // Buscar el separador |
+      const separadorIndex = linea.indexOf("|");
+
+      if (separadorIndex === -1) {
+        // Si no hay separador, toda la línea es la descripción
+        return {
+          nombre: "",
+          descripcion: linea.trim(),
+        };
+      }
+
+      return {
+        nombre: linea.substring(0, separadorIndex).trim(),
+        descripcion: linea.substring(separadorIndex + 1).trim(),
+      };
+    });
   }
 
   // ---------- REVISIÓN ----------
@@ -1134,7 +1236,7 @@ export class SyllabusRepository extends BaseRepository {
           rubricaUrl: schema.planEvaluacionOferta.rubricaUrl,
         })
         .from(schema.planEvaluacionOferta)
-        .where(sql`${schema.planEvaluacionOferta.id} = ANY(${planIds})`);
+        .where(inArray(schema.planEvaluacionOferta.id, planIds));
     }
 
     return {
@@ -1598,12 +1700,46 @@ export class SyllabusRepository extends BaseRepository {
       .orderBy(schema.silaboUnidad.numero);
   }
 
+  async findUnidadById(silaboId: number, unidadId: number) {
+    const [unidad] = await this.db
+      .select()
+      .from(schema.silaboUnidad)
+      .where(
+        and(
+          eq(schema.silaboUnidad.id, unidadId),
+          eq(schema.silaboUnidad.silaboId, silaboId),
+        ),
+      );
+
+    return unidad || null;
+  }
+
+  async findSemanasByUnidadId(unidadId: number) {
+    return await this.db
+      .select()
+      .from(schema.silaboUnidadSemana)
+      .where(eq(schema.silaboUnidadSemana.silaboUnidadId, unidadId))
+      .orderBy(schema.silaboUnidadSemana.semana);
+  }
+
   async insertUnidad(silaboId: number, data: any) {
     const result = await this.db
       .insert(schema.silaboUnidad)
       .values({
         silaboId,
         ...data,
+      })
+      .returning();
+
+    return result[0];
+  }
+
+  async insertUnidadSemana(unidadId: number, semanaData: any) {
+    const result = await this.db
+      .insert(schema.silaboUnidadSemana)
+      .values({
+        silaboUnidadId: unidadId,
+        ...semanaData,
       })
       .returning();
 
@@ -1623,6 +1759,22 @@ export class SyllabusRepository extends BaseRepository {
       .returning();
 
     return result[0] || null;
+  }
+
+  async updateUnidadSemana(semanaId: number, semanaData: any) {
+    const result = await this.db
+      .update(schema.silaboUnidadSemana)
+      .set(semanaData)
+      .where(eq(schema.silaboUnidadSemana.id, semanaId))
+      .returning();
+
+    return result[0] || null;
+  }
+
+  async deleteUnidadSemanasByUnidadId(unidadId: number) {
+    await this.db
+      .delete(schema.silaboUnidadSemana)
+      .where(eq(schema.silaboUnidadSemana.silaboUnidadId, unidadId));
   }
 
   async deleteUnidad(silaboId: number, unidadId: number) {
