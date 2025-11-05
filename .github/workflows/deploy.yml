@@ -1,81 +1,80 @@
-name: Deploy Azure Function with RBAC
+
+# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js project to Azure Function App - SGAFunctions
 
 on:
   push:
     branches:
-      - dev
+      - main
+  workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME: "Pruebadeploy4"
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: "."
-  NODE_VERSION: "22.x"
-  RESOURCE_GROUP: "Pruebadeploy4_group"
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
+  NODE_VERSION: '22' # set this to the node version to use (supports 8.x, 10.x, 12.x)
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read #This is required for actions/checkout
 
     steps:
-      # 1️⃣ Checkout del código
-      - name: Checkout repository
+      - name: 'Checkout GitHub Action'
         uses: actions/checkout@v4
 
-      # 2️⃣ Configurar Node.js con caché
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: "package-lock.json"
 
-      # 3️⃣ Instalar dependencias
-      - name: Install dependencies
-        run: npm ci
+      - name: 'Resolve Project Dependencies Using Npm'
+        shell: bash
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          npm install
+          npm run build --if-present
+          npm run test --if-present
+          popd
+      - name: Zip artifact for deployment
+        run: zip release.zip ./* -r
 
-      # 4️⃣ Compilar proyecto TypeScript
-      - name: Build project
-        run: npm run build
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app
+          path: release.zip
 
-      # 5️⃣ Login a Azure usando Service Principal
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+
+      - name: Unzip artifact for deployment
+        run: |
+          unzip release.zip
+          rm release.zip
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS2 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F5BA3429B32F49638061383B34DB711B }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_3B3241BA15654B44B90C7D57661EFBBB }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1A75B87DBC3F4BBF83972D151FE05F9A }}
 
-      # 6️⃣ Configurar runtime de Azure Function explícitamente
-      - name: Set Function App Runtime
-        run: |
-          az functionapp config appsettings set \
-            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --settings FUNCTIONS_NODE_VERSION=~20 \
-                      WEBSITE_NODE_DEFAULT_VERSION=~20 \
-                      FUNCTIONS_EXTENSION_VERSION=~4
-
-      # 7️⃣ Desplegar usando Azure Functions Action con RBAC
-      - name: Deploy to Azure Function
-        uses: azure/functions-action@v1
+      - name: 'Run Azure Functions Action'
+        uses: Azure/functions-action@v1
+        id: fa
         with:
-          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          app-name: 'SGAFunctions'
+          slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          slot-name: "production"
-          respect-funcignore: true
-
-      # 8️⃣ Verificar el estado del deployment
-      - name: Verify deployment
-        run: |
-          echo "Checking function app status..."
-          az functionapp show \
-            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --query "state"
-          echo "Listing available functions:"
-          az functionapp function list \
-            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --query "[].name"
-
-      # 9️⃣ Logout de Azure
-      - name: Logout from Azure
-        if: always()
-        run: az logout

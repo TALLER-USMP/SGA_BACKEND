@@ -7,11 +7,12 @@ import {
   integer,
   boolean,
   timestamp,
+  uniqueIndex,
   check,
   varchar,
   text,
+  smallint,
   date,
-  uniqueIndex,
   json,
   primaryKey,
 } from "drizzle-orm/pg-core";
@@ -63,6 +64,61 @@ export const silaboSeccionPermiso = pgTable(
   ],
 );
 
+export const silaboUnidad = pgTable(
+  "silabo_unidad",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    numero: integer().notNull(),
+    titulo: varchar().notNull(),
+    capacidadesText: text("capacidades_text"),
+    contenidosConceptuales: text("contenidos_conceptuales"),
+    contenidosProcedimentales: text("contenidos_procedimentales"),
+    actividadesAprendizaje: text("actividades_aprendizaje"),
+    horasLectivasTeoria: integer("horas_lectivas_teoria"),
+    horasLectivasPractica: integer("horas_lectivas_practica"),
+    horasNoLectivasTeoria: integer("horas_no_lectivas_teoria"),
+    horasNoLectivasPractica: integer("horas_no_lectivas_practica"),
+    contenidosConceptualesSemana: text(
+      "contenidos_conceptuales_semana",
+    ).array(),
+    contenidosProcedimentalesSemana: text(
+      "contenidos_procedimentales_semana",
+    ).array(),
+    actividadesAprendizajeSemana: text(
+      "actividades_aprendizaje_semana",
+    ).array(),
+    horasLectivasTeoriaSemanaArr: smallint(
+      "horas_lectivas_teoria_semana_arr",
+    ).array(),
+    horasLectivasPracticaSemanaArr: smallint(
+      "horas_lectivas_practica_semana_arr",
+    ).array(),
+    horasNoLectivasTeoriaSemanaArr: smallint(
+      "horas_no_lectivas_teoria_semana_arr",
+    ).array(),
+    horasNoLectivasPracticaSemanaArr: smallint(
+      "horas_no_lectivas_practica_semana_arr",
+    ).array(),
+  },
+  (table) => [
+    uniqueIndex("uq_silabo_unidad").using(
+      "btree",
+      table.silaboId.asc().nullsLast().op("int4_ops"),
+      table.numero.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "silabo_unidad_silabo_id_fkey",
+    }),
+    check(
+      "su_arrays_mismo_largo",
+      sql`(array_length(contenidos_conceptuales_semana, 1) IS NULL) OR (array_length(contenidos_procedimentales_semana, 1) IS NULL) OR (array_length(actividades_aprendizaje_semana, 1) IS NULL) OR (array_length(horas_lectivas_teoria_semana_arr, 1) IS NULL) OR (array_length(horas_lectivas_practica_semana_arr, 1) IS NULL) OR (array_length(horas_no_lectivas_teoria_semana_arr, 1) IS NULL) OR (array_length(horas_no_lectivas_practica_semana_arr, 1) IS NULL) OR (array_length(contenidos_conceptuales_semana, 1) = ALL (ARRAY[array_length(contenidos_procedimentales_semana, 1), array_length(actividades_aprendizaje_semana, 1), array_length(horas_lectivas_teoria_semana_arr, 1), array_length(horas_lectivas_practica_semana_arr, 1), array_length(horas_no_lectivas_teoria_semana_arr, 1), array_length(horas_no_lectivas_practica_semana_arr, 1)]))`,
+    ),
+  ],
+);
+
 export const docente = pgTable(
   "docente",
   {
@@ -79,10 +135,14 @@ export const docente = pgTable(
     nombreDocente: varchar("nombre_docente", { length: 100 }),
     gradoAcademicoId: integer("grado_academico_id"),
     numeroCelular: varchar("numero_celular", { length: 9 })
-      .default("000000000")
+      .default("999999999")
       .notNull(),
   },
   (table) => [
+    uniqueIndex("uq_docente_correo").using(
+      "btree",
+      sql`lower(btrim((correo)::text))`,
+    ),
     foreignKey({
       columns: [table.categoriaUsuarioId],
       foreignColumns: [categoriaUsuario.id],
@@ -217,6 +277,12 @@ export const silabo = pgTable(
       "btree",
       table.estadoRevision.asc().nullsLast().op("text_ops"),
     ),
+    uniqueIndex("uq_silabo_curso_sem_prog").using(
+      "btree",
+      sql`btrim((curso_codigo)::text)`,
+      sql`btrim((semestre_academico)::text)`,
+      sql`btrim((programa_academico)::text)`,
+    ),
     foreignKey({
       columns: [table.actualizadoPorDocenteId],
       foreignColumns: [docente.id],
@@ -349,6 +415,11 @@ export const planEvaluacionOferta = pgTable(
     updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
   },
   (table) => [
+    uniqueIndex("uq_plan_eval_silabo_componente").using(
+      "btree",
+      table.silaboId.asc().nullsLast().op("text_ops"),
+      table.componenteNombre.asc().nullsLast().op("text_ops"),
+    ),
     foreignKey({
       columns: [table.silaboId],
       foreignColumns: [silabo.id],
@@ -760,38 +831,6 @@ export const silaboSumilla = pgTable(
       table.silaboId,
       table.version,
     ),
-  ],
-);
-
-export const silaboUnidad = pgTable(
-  "silabo_unidad",
-  {
-    id: serial().primaryKey().notNull(),
-    silaboId: integer("silabo_id").notNull(),
-    numero: integer().notNull(),
-    titulo: varchar().notNull(),
-    capacidadesText: text("capacidades_text"),
-    semanaInicio: integer("semana_inicio"),
-    semanaFin: integer("semana_fin"),
-    contenidosConceptuales: text("contenidos_conceptuales"),
-    contenidosProcedimentales: text("contenidos_procedimentales"),
-    actividadesAprendizaje: text("actividades_aprendizaje"),
-    horasLectivasTeoria: integer("horas_lectivas_teoria"),
-    horasLectivasPractica: integer("horas_lectivas_practica"),
-    horasNoLectivasTeoria: integer("horas_no_lectivas_teoria"),
-    horasNoLectivasPractica: integer("horas_no_lectivas_practica"),
-  },
-  (table) => [
-    uniqueIndex("uq_silabo_unidad").using(
-      "btree",
-      table.silaboId.asc().nullsLast().op("int4_ops"),
-      table.numero.asc().nullsLast().op("int4_ops"),
-    ),
-    foreignKey({
-      columns: [table.silaboId],
-      foreignColumns: [silabo.id],
-      name: "silabo_unidad_silabo_id_fkey",
-    }),
   ],
 );
 
