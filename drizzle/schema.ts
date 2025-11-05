@@ -135,7 +135,7 @@ export const docente = pgTable(
     nombreDocente: varchar("nombre_docente", { length: 100 }),
     gradoAcademicoId: integer("grado_academico_id"),
     numeroCelular: varchar("numero_celular", { length: 9 })
-      .default(gen_numero_celular9())
+      .default("999999999")
       .notNull(),
   },
   (table) => [
