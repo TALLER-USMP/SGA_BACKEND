@@ -13,6 +13,6 @@ export const TeacherProfileUpdateSchema = z.object({
   nombre: z.string().min(1).max(100).optional(), // docente.nombre_docente
   gradoAcademicoId: z.number().int().positive().optional(), // FK al catálogo
   grado: z.string().min(1).max(100).optional(), //  docente.grado_academico
-  correo: z.string().email().optional(), // docente.correo
+  correo: z.email().optional(), // docente.correo
 });
 export type TeacherProfileUpdate = z.infer<typeof TeacherProfileUpdateSchema>;
