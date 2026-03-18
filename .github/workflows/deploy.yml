@@ -22,8 +22,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: 📦 Instalar dependencias
-        run: npm install
+      - name: 📦 Instalar dependencias y compilar
+        run: |
+          npm install
+          npm run build --if-present
+          npm run test --if-present
         
       # FLUJO PARA QA (Se activa si la rama es 'qa')
 
