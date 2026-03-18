@@ -46,8 +46,6 @@ jobs:
           app-name: 'func-sga-qa' 
           package: '.'
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_QA }}
-          scm-do-build-during-deployment: false
-          enable-oryx-build: false
 
       # FLUJO PARA PRODUCCIÓN
       - name: 🗄️ Actualizar Base de Datos (PRODUCCIÓN)
@@ -67,5 +65,3 @@ jobs:
           app-name: 'func-sga-prod'
           package: '.'
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_PROD }}
-          scm-do-build-during-deployment: false
-          enable-oryx-build: false
