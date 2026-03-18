@@ -27,9 +27,12 @@ jobs:
           npm install
           npm run build --if-present
           npm run test --if-present
-        
-      # FLUJO PARA QA (Se activa si la rama es 'qa')
 
+      - name: 🧹 Preparar paquete para despliegue
+        run: |
+          npm prune --production
+        
+      # FLUJO PARA QA
       - name: 🗄️ Actualizar Base de Datos (QA)
         if: github.ref == 'refs/heads/qa'
         env:
@@ -43,9 +46,10 @@ jobs:
           app-name: 'func-sga-qa' 
           package: '.'
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_QA }}
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false
 
-      # FLUJO PARA PRODUCCIÓN (Se activa si la rama es 'main')
-     
+      # FLUJO PARA PRODUCCIÓN
       - name: 🗄️ Actualizar Base de Datos (PRODUCCIÓN)
         if: github.ref == 'refs/heads/main'
         env:
@@ -59,5 +63,5 @@ jobs:
           app-name: 'func-sga-prod'
           package: '.'
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_PROD }}
-
-#Ola
+          scm-do-build-during-deployment: false
+          enable-oryx-build: false
