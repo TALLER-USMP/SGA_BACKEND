@@ -1321,12 +1321,11 @@ export class SyllabusController implements Updatable {
         jsonBody: {
           success: false,
           message:
-            error instanceof Error ? error.message : "Error al asignar docente",
+            error instanceof Error
+              ? error.message
+              : "Error al asignar docente",
         },
       };
     }
   }
 }
-/*
-2 prueba
-*/
