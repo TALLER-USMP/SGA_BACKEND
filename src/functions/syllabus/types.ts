@@ -547,3 +547,6 @@ export type AssignTeacherBody = {
   periodoAcademico: string;
   mensaje?: string;
 };
+/*
+3 prueba
+*/
