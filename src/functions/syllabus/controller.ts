@@ -16,6 +16,7 @@ import {
   UnidadCreateSchema,
   UnidadUpdateSchema,
   DatosGeneralesUpdateSchema,
+  ContenidoConceptualCreateSchema,
 } from "./types";
 import { STATUS_CODES } from "../../status-codes";
 
@@ -608,7 +609,7 @@ export class SyllabusController implements Updatable {
     return response.ok("Unidad eliminada correctamente", null);
   }
 
-  // ========================================
+ // ========================================
   // SECCIÓN IV-BIS: CONTENIDOS CONCEPTUALES
   // ========================================
 
@@ -634,6 +635,13 @@ export class SyllabusController implements Updatable {
       semana,
     );
 
+    if (!result || result.length === 0) {
+      return response.ok(
+        "No hay contenidos conceptuales registrados para esta semana",
+        []
+      );
+    }
+
     return response.ok(
       "Contenidos conceptuales obtenidos correctamente",
       result,
@@ -657,12 +665,13 @@ export class SyllabusController implements Updatable {
     }
 
     const body = await req.json();
+    const data = ContenidoConceptualCreateSchema.parse(body);
 
     const result = await syllabusService.createContenidoConceptual(
       id,
       unidadId,
       semana,
-      body,
+      data,
     );
 
     return response.created(
@@ -1321,11 +1330,98 @@ export class SyllabusController implements Updatable {
         jsonBody: {
           success: false,
           message:
-            error instanceof Error
-              ? error.message
-              : "Error al asignar docente",
+            error instanceof Error ? error.message : "Error al asignar docente",
         },
       };
     }
   }
+
+  /**
+ * GET /api/syllabus/assign-teacher/search?prefix=xxxxx
+ * Buscar asignaturas para asignación de docente
+ */
+@route("/assign-teacher/search", "GET")
+async searchSyllabiForAssign(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  const prefix = req.query.get("prefix") ?? "";
+  const data = await syllabusService.searchSyllabiForAssign(prefix);
+
+  return {
+    status: 200,
+    jsonBody: {
+      success: true,
+      data,
+    },
+  };
+}
+
+/**
+ * GET /api/syllabus/assign-teacher/{id}
+ * Obtener datos de una asignatura específica para asignación
+ */
+@route("/assign-teacher/{id}", "GET")
+async getSyllabusForAssign(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  const id = Number(req.params.id);
+  const data = await syllabusService.getSyllabusForAssign(id);
+
+  return {
+    status: 200,
+    jsonBody: {
+      success: true,
+      data,
+    },
+  };
+}
+
+@route("/enable-editing/{id}", "PUT")
+async enableEditing(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const id = Number(req.params.id);
+
+    const data = await syllabusService.enableEditing(id);
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        ...data,
+      },
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      const status =
+        error.code === "NOT_FOUND"
+          ? STATUS_CODES.NOT_FOUND
+          : error.code === "BAD_REQUEST"
+            ? STATUS_CODES.BAD_REQUEST
+            : STATUS_CODES.INTERNAL_SERVER_ERROR;
+
+      return {
+        status,
+        jsonBody: {
+          success: false,
+          name: error.name,
+          code: error.code,
+          message: error.message,
+        },
+      };
+    }
+
+    return {
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      jsonBody: {
+        success: false,
+        message: "Error interno del servidor",
+      },
+    };
+  }
+}
 }

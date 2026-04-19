@@ -15,12 +15,15 @@ import {
   FormulaEvaluacionCreate,
   FormulaEvaluacionUpdate,
   AssignTeacherBody,
+  ContenidoConceptualCreateSchema,
+  ContenidoConceptualUpdateSchema,
 } from "./types";
 import { SyllabusCreateSchema } from "./types";
 import { SumillaSchema } from "./types";
 import { AppError } from "../../error";
 import { z, ZodError } from "zod";
 import { ContributionCreateType } from "./types";
+
 
 export class SyllabusService {
  async assignTeacherToSyllabus(body: AssignTeacherBody) {
@@ -1061,71 +1064,195 @@ async aprobar(silaboId: number) {
   return syllabusRepository.aprobarSilabo(silaboId);
 }
 
+// CONTENIDO CONCEPTUAL
+// listar contenidos
 async getContenidosConceptualesBySemana(
   silaboId: number,
   unidadId: number,
   semana: number,
 ) {
-  return {
+  const syllabus = await syllabusRepository.findById(silaboId);
+  if (!syllabus) {
+    throw new AppError("NotFound", "NOT_FOUND", "Sílabo no encontrado");
+  }
+
+  const result = await syllabusRepository.findContenidosConceptualesBySemana(
     silaboId,
     unidadId,
     semana,
-    items: [],
-  };
+  );
+
+  if (result === null) {
+    throw new AppError(
+      "NotFound",
+      "NOT_FOUND",
+      "No se encontró la semana de la unidad",
+    );
+  }
+
+  return result;
 }
 
+// crear contenido
 async createContenidoConceptual(
   silaboId: number,
   unidadId: number,
   semana: number,
-  body: any,
+  body: unknown,
 ) {
-  return {
-    success: true,
-    message: "Contenido conceptual creado correctamente",
+  const parsed = ContenidoConceptualCreateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    const details = parsed.error.issues
+      .map((e) => `${e.path.join(".")}: ${e.message}`)
+      .join("; ");
+    throw new AppError("BadRequest", "BAD_REQUEST", details);
+  }
+
+  const result = await syllabusRepository.insertContenidoConceptual(
     silaboId,
     unidadId,
     semana,
-    data: body,
-  };
+    parsed.data,
+  );
+
+  if (!result) {
+    throw new AppError(
+      "NotFound",
+      "NOT_FOUND",
+      "No se encontró la semana de la unidad",
+    );
+  }
+
+  return result;
 }
 
+// actualizar contenido
 async updateContenidoConceptual(
   silaboId: number,
   unidadId: number,
   semana: number,
   contenidoId: number,
-  body: any,
+  body: unknown,
 ) {
-  return {
-    success: true,
-    message: "Contenido conceptual actualizado correctamente",
+  const parsed = ContenidoConceptualUpdateSchema.safeParse(body);
+
+  if (!parsed.success) {
+    const details = parsed.error.issues
+      .map((e) => `${e.path.join(".")}: ${e.message}`)
+      .join("; ");
+    throw new AppError("BadRequest", "BAD_REQUEST", details);
+  }
+
+  const result = await syllabusRepository.updateContenidoConceptual(
     silaboId,
     unidadId,
     semana,
     contenidoId,
-    data: body,
-  };
+    parsed.data,
+  );
+
+  if (!result) {
+    throw new AppError(
+      "NotFound",
+      "NOT_FOUND",
+      "Contenido conceptual no encontrado",
+    );
+  }
+
+  return result;
 }
 
+// eliminar contenido
 async deleteContenidoConceptual(
   silaboId: number,
   unidadId: number,
   semana: number,
   contenidoId: number,
 ) {
-  return {
-    success: true,
-    message: "Contenido conceptual eliminado correctamente",
+  const deleted = await syllabusRepository.deleteContenidoConceptual(
     silaboId,
     unidadId,
     semana,
     contenidoId,
+  );
+
+  if (!deleted) {
+    throw new AppError(
+      "NotFound",
+      "NOT_FOUND",
+      "Contenido conceptual no encontrado",
+    );
+  }
+
+  return {
+    ok: true,
+    message: "Contenido conceptual eliminado correctamente",
   };
 }
+
+async searchSyllabiForAssign(prefixRaw: string) {
+  const prefix = String(prefixRaw ?? "").trim();
+
+  if (prefix.length < 5) {
+    return [];
+  }
+
+  const rows = await syllabusRepository.searchSyllabiByPrefix(prefix);
+
+  return rows.map((row) => ({
+    id: row.id,
+    nombre: row.nombre,
+    codigo: row.codigo,
+    soloLectura: true,
+  }));
 }
 
+async getSyllabusForAssign(id: number) {
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new AppError("BadRequest", "BAD_REQUEST", "ID de asignatura inválido");
+  }
+
+  const syllabus = await syllabusRepository.findSyllabusForAssignById(id);
+
+  if (!syllabus) {
+    throw new AppError("NotFound", "NOT_FOUND", "Asignatura no encontrada");
+  }
+
+  return {
+    id: syllabus.id,
+    nombre: syllabus.nombre,
+    codigo: syllabus.codigo,
+    soloLectura: true,
+  };
+}
+async enableEditing(asignacionId: number) {
+  if (!Number.isFinite(asignacionId) || asignacionId <= 0) {
+    throw new AppError("BadRequest", "BAD_REQUEST", "ID inválido");
+  }
+
+  const asignacion = await syllabusRepository.findAssignmentById(asignacionId);
+
+  if (!asignacion) {
+    throw new AppError("NotFound", "NOT_FOUND", "Asignación no encontrada");
+  }
+
+  // 1. Cambiar estado del sílabo
+  await syllabusRepository.updateSyllabusState(
+    asignacion.silaboId,
+    "HABILITADO_EDICION"
+  );
+
+  // 2. Cambiar rol del docente
+  await syllabusRepository.updateTeacherRole(
+    asignacionId,
+    "EDITOR"
+  );
+
+  return {
+    message: "Edición habilitada correctamente",
+  };
+}
+
+}
 export const syllabusService = new SyllabusService();
-
-
-

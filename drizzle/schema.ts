@@ -17,6 +17,7 @@ import {
   primaryKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 
 export const silaboSeccionPermiso = pgTable(
   "silabo_seccion_permiso",
@@ -273,8 +274,8 @@ export const silabo = pgTable(
     actualizadoPorDocenteId: integer("actualizado_por_docente_id"),
     createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
-    horasTotales: integer("horas_totales"),
-    creditosTotales: integer("creditos_totales"),
+    horasTotales: integer(),
+    creditosTotales: integer(),
   },
   (table) => [
     index("idx_silabo_estado").using(
@@ -970,4 +971,31 @@ export const silaboAporteResultadoPrograma = pgTable(
       name: "silabo_aporte_resultado_programa_pk",
     }),
   ],
+);
+export const silaboArchivoFirmado = pgTable(
+  "silabo_archivo_firmado",
+  {
+    id: serial().primaryKey().notNull(),
+    silaboId: integer("silabo_id").notNull(),
+    ciclo: varchar("ciclo", { length: 20 }).notNull(),
+    nombreArchivo: varchar("nombre_archivo", { length: 255 }).notNull(),
+    rutaArchivo: text("ruta_archivo").notNull(),
+    fechaSubida: timestamp("fecha_subida", { mode: "string" }).defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.silaboId],
+      foreignColumns: [silabo.id],
+      name: "fk_silabo_archivo_firmado_silabo",
+    }).onDelete("cascade"),
+  ],
+);
+export const silaboArchivoFirmadoRelations = relations(
+  silaboArchivoFirmado,
+  ({ one }) => ({
+    silabo: one(silabo, {
+      fields: [silaboArchivoFirmado.silaboId],
+      references: [silabo.id],
+    }),
+  }),
 );
