@@ -1,0 +1,67 @@
+name: Backend CI/CD (SGA Functions & DB)
+
+on:
+  push:
+    branches:
+      - main
+      - qa  
+
+env:
+  NODE_VERSION: '22.x' 
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Descargar código
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Instalar dependencias y compilar
+        run: |
+          npm install
+          npm run build --if-present
+          npm run test --if-present
+        
+      # FLUJO PARA QA
+      - name: 🗄️ Actualizar Base de Datos (QA)
+        if: github.ref == 'refs/heads/qa'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_QA }}
+        run: npx drizzle-kit push --force
+
+      - name: 🧹 Preparar paquete para despliegue (QA)
+        if: github.ref == 'refs/heads/qa'
+        run: npm prune --production
+
+      - name: 🚀 Desplegar a Azure Function (QA)
+        if: github.ref == 'refs/heads/qa'
+        uses: Azure/functions-action@v1
+        with:
+          app-name: 'func-sga-qa' 
+          package: '.'
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_QA }}
+
+      # FLUJO PARA PRODUCCIÓN
+      - name: 🗄️ Actualizar Base de Datos (PRODUCCIÓN)
+        if: github.ref == 'refs/heads/main'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx drizzle-kit push --force
+
+      - name: 🧹 Preparar paquete para despliegue (PROD)
+        if: github.ref == 'refs/heads/main'
+        run: npm prune --production
+
+      - name: 🚀 Desplegar a Azure Function (PRODUCCIÓN)
+        if: github.ref == 'refs/heads/main'
+        uses: Azure/functions-action@v1
+        with:
+          app-name: 'func-sga-prod'
+          package: '.'
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE_PROD }}
