@@ -3,6 +3,7 @@ import {
   InvocationContext,
   HttpResponseInit,
 } from "@azure/functions";
+import type { AssignTeacherBody } from "./types";
 import { Updatable } from "../../types";
 import { controller, route } from "../../lib/decorators";
 import { syllabusService } from "./service";
@@ -15,6 +16,7 @@ import {
   UnidadCreateSchema,
   UnidadUpdateSchema,
   DatosGeneralesUpdateSchema,
+  ContenidoConceptualCreateSchema,
 } from "./types";
 import { STATUS_CODES } from "../../status-codes";
 
@@ -46,16 +48,17 @@ export class SyllabusController implements Updatable {
   @route("/", "POST")
   async create(
     req: HttpRequest,
-    context: InvocationContext,
+    _context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const service = syllabusService;
     const body = await req.json();
-    const idNewSyllabus = await service.createSyllabus(body);
+    const idNewSyllabus = await syllabusService.createSyllabus(body);
+
     if (!idNewSyllabus) {
       return {
         status: 500,
       };
     }
+
     return {
       status: 201,
       jsonBody: {
@@ -173,6 +176,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (typeof id !== "number" || Number.isNaN(id) || !Number.isFinite(id)) {
       throw new AppError("BadRequest", "BAD_REQUEST", "ID de sílabo inválido");
     }
@@ -199,6 +203,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.syllabusId);
+
     if (isNaN(id)) {
       throw new AppError("BadRequest", "BAD_REQUEST", "ID inválido");
     }
@@ -219,6 +224,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
@@ -242,12 +248,14 @@ export class SyllabusController implements Updatable {
   ): Promise<HttpResponseInit> {
     const { syllabusId } = req.params as { syllabusId: string };
     const id = Number(syllabusId);
+
     if (Number.isNaN(id)) {
       return {
         status: STATUS_CODES.BAD_REQUEST,
         jsonBody: { name: "BadRequest", message: "syllabusId inválido" },
       };
     }
+
     const data = await syllabusService.getGeneralDataSyllabusById(id);
     return { status: STATUS_CODES.OK, jsonBody: data };
   }
@@ -262,6 +270,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
@@ -295,10 +304,11 @@ export class SyllabusController implements Updatable {
   @route("/{silaboId:int}/sumilla", "GET")
   async getSumillaBySilaboId(
     req: HttpRequest,
-    context: InvocationContext,
+    _context: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.silaboId);
     const result = await syllabusService.getSumillaBySilaboId(id);
+
     return {
       status: STATUS_CODES.OK,
       jsonBody: {
@@ -315,12 +325,12 @@ export class SyllabusController implements Updatable {
   @route("/{id:int}/sumilla", "POST")
   async registerSumilla(
     req: HttpRequest,
-    context: InvocationContext,
+    _context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const service = syllabusService;
     const id = Number(req.params.id);
     const body = await req.json();
-    const result = await service.registerSumilla(id, body);
+    const result = await syllabusService.registerSumilla(id, body);
+
     return {
       status: 200,
       jsonBody: {
@@ -337,12 +347,12 @@ export class SyllabusController implements Updatable {
   @route("/{id:int}/sumilla", "PUT")
   async updateSumilla(
     req: HttpRequest,
-    context: InvocationContext,
+    _context: InvocationContext,
   ): Promise<HttpResponseInit> {
-    const service = syllabusService;
     const id = Number(req.params.id);
     const body = await req.json();
-    const result = await service.updateSumilla(id, body);
+    const result = await syllabusService.updateSumilla(id, body);
+
     return {
       status: 200,
       jsonBody: {
@@ -388,10 +398,6 @@ export class SyllabusController implements Updatable {
   /**
    * PUT /api/syllabus/{syllabusId}/competencies
    * Actualizar/sincronizar competencias del curso
-   * Body: { items: [{ id?: number, text: string, code?: string, order?: number }] }
-   * - Si el item tiene id: se actualiza
-   * - Si el item NO tiene id: se crea
-   * - Los items que no están en la lista: se eliminan
    */
   @route("/{syllabusId:int}/competencies", "PUT")
   async updateCompetencies(
@@ -421,12 +427,6 @@ export class SyllabusController implements Updatable {
   /**
    * GET /api/syllabus/{syllabusId}/components
    * Listar componentes/capacidades
-   * Query params: ?grupo=COMP (opcional, para filtrar por grupo específico)
-   *
-   * Retorna:
-   * - items: todos los items (competencias + actitudinales)
-   * - competencias: solo items con código de más de 1 letra
-   * - actitudinales: solo items con código de 1 letra
    */
   @route("/{syllabusId:int}/components", "GET")
   async listComponents(
@@ -474,10 +474,6 @@ export class SyllabusController implements Updatable {
   /**
    * PUT /api/syllabus/{syllabusId}/components
    * Actualizar/sincronizar componentes/capacidades
-   * Body: { items: [{ id?: number, text: string, code?: string, order?: number, grupo?: string }] }
-   * - Si el item tiene id: se actualiza
-   * - Si el item NO tiene id: se crea
-   * - Los items que no están en la lista: se eliminan
    */
   @route("/{syllabusId:int}/components", "PUT")
   async updateComponents(
@@ -536,10 +532,6 @@ export class SyllabusController implements Updatable {
   /**
    * PUT /api/syllabus/{syllabusId}/attitudes
    * Actualizar/sincronizar actitudes
-   * Body: { items: [{ id?: number, text: string, code?: string, order?: number }] }
-   * - Si el item tiene id: se actualiza
-   * - Si el item NO tiene id: se crea
-   * - Los items que no están en la lista: se eliminan
    */
   @route("/{syllabusId:int}/attitudes", "PUT")
   async updateAttitudes(
@@ -580,12 +572,12 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
 
     const unidades = await syllabusService.getUnidades(id);
-
     return response.ok("Unidades obtenidas correctamente", unidades);
   }
 
@@ -606,7 +598,6 @@ export class SyllabusController implements Updatable {
     }
 
     const unidad = await syllabusService.getUnidadById(id, unidadId);
-
     return response.ok("Unidad obtenida correctamente", unidad);
   }
 
@@ -620,6 +611,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
@@ -638,7 +630,6 @@ export class SyllabusController implements Updatable {
     }
 
     const result = await syllabusService.createUnidad(id, parsed.data);
-
     return response.created("Unidad creada correctamente", result);
   }
 
@@ -697,8 +688,138 @@ export class SyllabusController implements Updatable {
     }
 
     await syllabusService.deleteUnidad(id, unidadId);
-
     return response.ok("Unidad eliminada correctamente", null);
+  }
+
+ // ========================================
+  // SECCIÓN IV-BIS: CONTENIDOS CONCEPTUALES
+  // ========================================
+
+  @route(
+    "/{id}/unidades/{unidadId}/semanas/{semana}/contenidos-conceptuales",
+    "GET",
+  )
+  async getContenidosConceptualesBySemana(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const unidadId = Number(req.params.unidadId);
+    const semana = Number(req.params.semana);
+
+    if ([id, unidadId, semana].some(Number.isNaN)) {
+      return response.badRequest("IDs o semana inválidos");
+    }
+
+    const result = await syllabusService.getContenidosConceptualesBySemana(
+      id,
+      unidadId,
+      semana,
+    );
+
+    if (!result || result.length === 0) {
+      return response.ok(
+        "No hay contenidos conceptuales registrados para esta semana",
+        []
+      );
+    }
+
+    return response.ok(
+      "Contenidos conceptuales obtenidos correctamente",
+      result,
+    );
+  }
+
+  @route(
+    "/{id}/unidades/{unidadId}/semanas/{semana}/contenidos-conceptuales",
+    "POST",
+  )
+  async createContenidoConceptual(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const unidadId = Number(req.params.unidadId);
+    const semana = Number(req.params.semana);
+
+    if ([id, unidadId, semana].some(Number.isNaN)) {
+      return response.badRequest("IDs o semana inválidos");
+    }
+
+    const body = await req.json();
+    const data = ContenidoConceptualCreateSchema.parse(body);
+
+    const result = await syllabusService.createContenidoConceptual(
+      id,
+      unidadId,
+      semana,
+      data,
+    );
+
+    return response.created(
+      "Contenido conceptual creado correctamente",
+      result,
+    );
+  }
+
+  @route(
+    "/{id}/unidades/{unidadId}/semanas/{semana}/contenidos-conceptuales/{contenidoId}",
+    "PUT",
+  )
+  async updateContenidoConceptual(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const unidadId = Number(req.params.unidadId);
+    const semana = Number(req.params.semana);
+    const contenidoId = Number(req.params.contenidoId);
+
+    if ([id, unidadId, semana, contenidoId].some(Number.isNaN)) {
+      return response.badRequest("IDs o semana inválidos");
+    }
+
+    const body = await req.json();
+
+    const result = await syllabusService.updateContenidoConceptual(
+      id,
+      unidadId,
+      semana,
+      contenidoId,
+      body,
+    );
+
+    return response.ok(
+      "Contenido conceptual actualizado correctamente",
+      result,
+    );
+  }
+
+  @route(
+    "/{id}/unidades/{unidadId}/semanas/{semana}/contenidos-conceptuales/{contenidoId}",
+    "DELETE",
+  )
+  async deleteContenidoConceptual(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const id = Number(req.params.id);
+    const unidadId = Number(req.params.unidadId);
+    const semana = Number(req.params.semana);
+    const contenidoId = Number(req.params.contenidoId);
+
+    if ([id, unidadId, semana, contenidoId].some(Number.isNaN)) {
+      return response.badRequest("IDs o semana inválidos");
+    }
+
+    const result = await syllabusService.deleteContenidoConceptual(
+      id,
+      unidadId,
+      semana,
+      contenidoId,
+    );
+
+    return response.ok(result.message, result);
   }
 
   // ========================================
@@ -715,6 +836,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
@@ -737,12 +859,14 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
 
     const body = (await req.json()) as { estrategias_metodologicas: string };
     const { estrategias_metodologicas } = body;
+
     const result = await syllabusService.putEstrategiasMetodologicas(
       id,
       estrategias_metodologicas,
@@ -782,12 +906,12 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
 
     const result = await syllabusService.getRecursosDidacticosNotas(id);
-
     return response.ok("Recursos didácticos obtenidos correctamente", result);
   }
 
@@ -801,12 +925,14 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
 
     const body = (await req.json()) as { recursos_didacticos_notas: string };
     const { recursos_didacticos_notas } = body;
+
     const result = await syllabusService.putRecursosDidacticosNotas(
       id,
       recursos_didacticos_notas,
@@ -846,6 +972,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const silaboId = Number(req.params.id);
+
     if (Number.isNaN(silaboId)) {
       return response.badRequest("ID de sílabo inválido");
     }
@@ -877,6 +1004,7 @@ export class SyllabusController implements Updatable {
       if (error instanceof AppError) {
         return error.toHttpResponse();
       }
+
       console.error("Error al crear fórmula de evaluación:", error);
       return response.serverError("Error al crear fórmula de evaluación");
     }
@@ -892,6 +1020,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de fórmula inválido");
     }
@@ -908,6 +1037,7 @@ export class SyllabusController implements Updatable {
       if (error instanceof AppError) {
         return error.toHttpResponse();
       }
+
       console.error("Error al actualizar fórmula de evaluación:", error);
       return response.serverError("Error al actualizar fórmula de evaluación");
     }
@@ -927,12 +1057,12 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
 
     const fuentes = await syllabusService.getFuentes(id);
-
     return response.ok("Fuentes obtenidas correctamente", fuentes);
   }
 
@@ -946,6 +1076,7 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
@@ -964,7 +1095,6 @@ export class SyllabusController implements Updatable {
     }
 
     const result = await syllabusService.createFuente(id, parsed.data);
-
     return response.created("Fuente creada correctamente", result);
   }
 
@@ -1023,7 +1153,6 @@ export class SyllabusController implements Updatable {
     }
 
     await syllabusService.deleteFuente(id, fuenteId);
-
     return response.ok("Fuente eliminada correctamente", null);
   }
 
@@ -1041,12 +1170,12 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
+
     if (Number.isNaN(id)) {
       return response.badRequest("ID de sílabo inválido");
     }
 
     const contributions = await syllabusService.getContributions(id);
-
     return response.ok("Aportes obtenidos correctamente", contributions);
   }
 
@@ -1073,7 +1202,6 @@ export class SyllabusController implements Updatable {
     }
 
     const result = await syllabusService.createAporte(parsed.data);
-
     return response.created("Aporte creado correctamente", result);
   }
 
@@ -1145,11 +1273,13 @@ export class SyllabusController implements Updatable {
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
     const silaboId = Number(req.params.silaboId);
-    const docendeId = Number(req.query.get("docenteId"));
+    const docenteId = Number(req.query.get("docenteId"));
+
     const result = await syllabusService.getSyllabusRevisionById(
       silaboId,
-      docendeId,
+      docenteId,
     );
+
     return {
       status: 200,
       jsonBody: {
@@ -1170,6 +1300,7 @@ export class SyllabusController implements Updatable {
   ): Promise<HttpResponseInit> {
     const id = Number(req.params.id);
     const result = await syllabusService.getRevisionData(id);
+
     return {
       status: 200,
       jsonBody: {
@@ -1191,6 +1322,7 @@ export class SyllabusController implements Updatable {
     const id = Number(req.params.id);
     const body = await req.json();
     const result = await syllabusService.saveRevisionData(id, body);
+
     return {
       status: 200,
       jsonBody: {
@@ -1212,6 +1344,7 @@ export class SyllabusController implements Updatable {
     const id = Number(req.params.id);
     const body = await req.json();
     const result = await syllabusService.approveSyllabus(id, body);
+
     return {
       status: 200,
       jsonBody: {
@@ -1234,6 +1367,7 @@ export class SyllabusController implements Updatable {
     const id = Number(req.params.id);
     const body = await req.json();
     const result = await syllabusService.disapproveSyllabus(id, body);
+
     return {
       status: 200,
       jsonBody: {
@@ -1243,4 +1377,133 @@ export class SyllabusController implements Updatable {
       },
     };
   }
+
+  // ========================================
+  // ASIGNAR DOCENTE A SÍLABO
+  // ========================================
+
+  /**
+   * POST /api/syllabus/assign-teacher
+   * Asignar docente a un sílabo
+   */
+  @route("/assign-teacher", "POST")
+  async assignTeacher(
+    req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    try {
+      const body = (await req.json()) as AssignTeacherBody;
+      const result = await syllabusService.assignTeacherToSyllabus(body);
+
+      return {
+        status: 200,
+        jsonBody: {
+          success: true,
+          message: result.message,
+        },
+      };
+    } catch (error) {
+      if (error instanceof AppError) {
+        return error.toHttpResponse();
+      }
+
+      return {
+        status: 400,
+        jsonBody: {
+          success: false,
+          message:
+            error instanceof Error ? error.message : "Error al asignar docente",
+        },
+      };
+    }
+  }
+
+  /**
+ * GET /api/syllabus/assign-teacher/search?prefix=xxxxx
+ * Buscar asignaturas para asignación de docente
+ */
+@route("/assign-teacher/search", "GET")
+async searchSyllabiForAssign(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  const prefix = req.query.get("prefix") ?? "";
+  const data = await syllabusService.searchSyllabiForAssign(prefix);
+
+  return {
+    status: 200,
+    jsonBody: {
+      success: true,
+      data,
+    },
+  };
+}
+
+/**
+ * GET /api/syllabus/assign-teacher/{id}
+ * Obtener datos de una asignatura específica para asignación
+ */
+@route("/assign-teacher/{id}", "GET")
+async getSyllabusForAssign(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  const id = Number(req.params.id);
+  const data = await syllabusService.getSyllabusForAssign(id);
+
+  return {
+    status: 200,
+    jsonBody: {
+      success: true,
+      data,
+    },
+  };
+}
+
+@route("/enable-editing/{id}", "PUT")
+async enableEditing(
+  req: HttpRequest,
+  _ctx: InvocationContext,
+): Promise<HttpResponseInit> {
+  try {
+    const id = Number(req.params.id);
+
+    const data = await syllabusService.enableEditing(id);
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        ...data,
+      },
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      const status =
+        error.code === "NOT_FOUND"
+          ? STATUS_CODES.NOT_FOUND
+          : error.code === "BAD_REQUEST"
+            ? STATUS_CODES.BAD_REQUEST
+            : STATUS_CODES.INTERNAL_SERVER_ERROR;
+
+      return {
+        status,
+        jsonBody: {
+          success: false,
+          name: error.name,
+          code: error.code,
+          message: error.message,
+        },
+      };
+    }
+
+    return {
+      status: STATUS_CODES.INTERNAL_SERVER_ERROR,
+      jsonBody: {
+        success: false,
+        message: "Error interno del servidor",
+      },
+    };
+  }
+}
 }
