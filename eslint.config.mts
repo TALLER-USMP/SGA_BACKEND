@@ -3,26 +3,26 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 import prettier from "eslint-config-prettier";
-import eslintPluginPrettier from "eslint-plugin-prettier";
+import eslintPluginPrettier from "eslint-plugin-prettier"; 
 
 export default defineConfig([
   globalIgnores(["dist", "node_modules", "out", "coverage", "drizzle"]),
 
   {
     files: ["**/*.ts"],
-    ignores: ["drizzle/**"], // Agrega esta línea
+    ignores: ["drizzle/**"],  // Agrega esta línea
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
-      prettier,
+      prettier, 
     ],
     plugins: {
-      prettier: eslintPluginPrettier,
+      prettier: eslintPluginPrettier, 
     },
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: ["./tsconfig.eslint.json"],
+        project: ["./tsconfig.json"],
       },
       ecmaVersion: 2020,
       sourceType: "module",
@@ -41,7 +41,7 @@ export default defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/explicit-module-boundary-types": "off",
       "prefer-const": "warn",
-      eqeqeq: ["warn", "always"],
+      "eqeqeq": ["warn", "always"],
       "prettier/prettier": [
         "warn",
         {
