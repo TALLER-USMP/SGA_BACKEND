@@ -28,7 +28,6 @@ import {
   categoriaFuncion,
   funcionAplicacion,
   silaboAporteResultadoPrograma,
-  silaboContenidoConceptual,
 } from "./schema";
 
 export const silaboSeccionPermisoRelations = relations(
@@ -179,31 +178,10 @@ export const formulaEvaluacionVariableRelations = relations(
 
 export const silaboUnidadSemanaRelations = relations(
   silaboUnidadSemana,
-  ({ one, many }) => ({
+  ({ one }) => ({
     silaboUnidad: one(silaboUnidad, {
       fields: [silaboUnidadSemana.silaboUnidadId],
       references: [silaboUnidad.id],
-    }),
-    contenidosConceptuales: many(silaboContenidoConceptual),
-  }),
-);
-
-export const silaboContenidoConceptualRelations = relations(
-  silaboContenidoConceptual,
-  ({ one }) => ({
-    silaboUnidadSemana: one(silaboUnidadSemana, {
-      fields: [silaboContenidoConceptual.silaboUnidadSemanaId],
-      references: [silaboUnidadSemana.id],
-    }),
-    creadoPorDocente: one(docente, {
-      fields: [silaboContenidoConceptual.creadoPorDocenteId],
-      references: [docente.id],
-      relationName: "contenido_conceptual_creado_por_docente_id",
-    }),
-    actualizadoPorDocente: one(docente, {
-      fields: [silaboContenidoConceptual.actualizadoPorDocenteId],
-      references: [docente.id],
-      relationName: "contenido_conceptual_actualizado_por_docente_id",
     }),
   }),
 );

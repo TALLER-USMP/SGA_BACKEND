@@ -25,96 +25,6 @@ type CreateItem = { text: string; order?: number | null; code?: string | null };
 const GROUP_COMP = "COMP";
 const GROUP_ACT = "ACT";
 
-function firstDefined<T>(
-  ...values: Array<T | undefined | null>
-): T | undefined {
-  return values.find((value) => value !== undefined && value !== null) as
-    | T
-    | undefined;
-}
-
-function normalizeSyllabusUpdate(data: Record<string, unknown>) {
-  const updateData: Record<string, unknown> = {};
-  const assign = (column: string, ...keys: string[]) => {
-    const value = firstDefined(...keys.map((key) => data[key]));
-    if (value !== undefined) {
-      updateData[column] = value;
-    }
-  };
-
-  assign(
-    "departamentoAcademico",
-    "departamentoAcademico",
-    "departamento_academico",
-  );
-  assign("escuelaProfesional", "escuelaProfesional", "escuela_profesional");
-  assign("programaAcademico", "programaAcademico", "programa_academico");
-  assign("areaCurricular", "areaCurricular", "area_curricular");
-  assign(
-    "cursoCodigo",
-    "cursoCodigo",
-    "codigoAsignatura",
-    "codigo",
-    "curso_codigo",
-  );
-  assign("cursoNombre", "cursoNombre", "nombreAsignatura", "curso_nombre");
-  assign("semestreAcademico", "semestreAcademico", "semestre_academico");
-  assign("tipoAsignatura", "tipoAsignatura", "tipo_asignatura");
-  assign(
-    "tipoDeEstudios",
-    "tipoDeEstudios",
-    "tipoEstudios",
-    "tipo_de_estudios",
-  );
-  assign(
-    "modalidadDeAsignatura",
-    "modalidadDeAsignatura",
-    "modalidad",
-    "modalidad_de_asignatura",
-  );
-  assign(
-    "formatoDeCurso",
-    "formatoDeCurso",
-    "formatoCurso",
-    "formato_de_curso",
-  );
-  assign("ciclo", "ciclo");
-  assign("requisitos", "requisitos");
-  assign("horasTeoria", "horasTeoria", "horas_teoria");
-  assign("horasPractica", "horasPractica", "horas_practica");
-  assign("horasLaboratorio", "horasLaboratorio", "horas_laboratorio");
-  assign("horasTotales", "horasTotales", "horas_totales");
-  assign("creditosTeoria", "creditosTeoria", "creditos_teoria");
-  assign("creditosPractica", "creditosPractica", "creditos_practica");
-  assign("creditosTotales", "creditosTotales", "creditos_totales");
-  assign("estadoRevision", "estadoRevision", "estado", "estado_revision");
-  assign(
-    "asignadoADocenteId",
-    "asignadoADocenteId",
-    "asignado_a_docente_id",
-    "docenteId",
-    "docente_id",
-  );
-  assign("creadoPorDocenteId", "creadoPorDocenteId", "creado_por_docente_id");
-  assign(
-    "actualizadoPorDocenteId",
-    "actualizadoPorDocenteId",
-    "actualizado_por_docente_id",
-  );
-  assign(
-    "estrategiasMetodologicas",
-    "estrategiasMetodologicas",
-    "estrategias_metodologicas",
-  );
-  assign(
-    "recursosDidacticosNotas",
-    "recursosDidacticosNotas",
-    "recursos_didacticos_notas",
-  );
-
-  return updateData;
-}
-
 export class SyllabusRepository extends BaseRepository {
   async findById(id: number) {
     const syllabus = await this.db
@@ -178,19 +88,18 @@ export class SyllabusRepository extends BaseRepository {
     };
   }
 
-  async create(syllabusData: z.infer<typeof SyllabusCreateSchema>) {
-    const assignedTeacherId =
-      syllabusData.asignadoADocenteId ??
-      syllabusData.asignado_a_docente_id ??
-      syllabusData.docenteId ??
-      null;
-    const createdByTeacherId =
-      syllabusData.creadoPorDocenteId ?? assignedTeacherId;
-    const updatedByTeacherId =
-      syllabusData.actualizadoPorDocenteId ?? createdByTeacherId;
+    async create(syllabusData: z.infer<typeof SyllabusCreateSchema>) {
+      const docenteId =
+        Number(
+          (syllabusData as any).asignadoADocenteId ??
+            (syllabusData as any).asignado_a_docente_id ??
+            (syllabusData as any).docenteId,
+        ) || null;
 
-    return await this.db.transaction(async (tx) => {
-      const [createdSyllabus] = await tx
+        console.log("SYLLABUS DATA CREATE:", syllabusData);
+        console.log("DOCENTE ID CREATE:", docenteId);
+
+      const result = await this.db
         .insert(silabo)
         .values({
           departamentoAcademico: syllabusData.departamentoAcademico,
@@ -206,7 +115,6 @@ export class SyllabusRepository extends BaseRepository {
 
           requisitos: syllabusData.requisitos || null,
 
-          // 🕒 Horas
           horasTeoria: syllabusData.horasTeoria ?? null,
           horasPractica: syllabusData.horasPractica ?? null,
           horasLaboratorio: syllabusData.horasLaboratorio ?? null,
@@ -229,37 +137,37 @@ export class SyllabusRepository extends BaseRepository {
           horasPracticaNoLectivaDistancia:
             syllabusData.horasPracticaNoLectivaDistancia ?? null,
 
-          // 🧮 Créditos
-          horasTotales: syllabusData.horasTotales ?? null,
           creditosTeoria: syllabusData.creditosTeoria ?? null,
           creditosPractica: syllabusData.creditosPractica ?? null,
-          creditosTotales: syllabusData.creditosTotales ?? null,
 
-          // 👤 Relaciones (null por ahora, hasta integrar autenticación)
-          creadoPorDocenteId: createdByTeacherId,
-          actualizadoPorDocenteId: updatedByTeacherId,
-          asignadoADocenteId: assignedTeacherId,
-
-          // 🟢 Estado inicial por defecto
-          estadoRevision:
-            syllabusData.estadoRevision ??
-            syllabusData.estado_revision ??
-            syllabusData.estado ??
-            "ASIGNADO",
+          creadoPorDocenteId: docenteId,
+          actualizadoPorDocenteId: docenteId,
+          asignadoADocenteId: docenteId,
+          estadoRevision: "ASIGNADO",
         })
         .returning({ id: silabo.id });
 
-      if (assignedTeacherId) {
-        await tx.insert(silaboDocente).values({
-          silaboId: createdSyllabus.id,
-          docenteId: assignedTeacherId,
+      const silaboId = result[0].id;
+
+      if (docenteId) {
+        await this.db
+          .update(silabo)
+          .set({
+            asignadoADocenteId: docenteId,
+            creadoPorDocenteId: docenteId,
+            actualizadoPorDocenteId: docenteId,
+          })
+          .where(eq(silabo.id, silaboId));
+
+        await this.db.insert(silaboDocente).values({
+          silaboId,
+          docenteId,
           rol: "DOCENTE",
         });
       }
 
-      return createdSyllabus.id;
-    });
-  }
+      return silaboId;
+    }
 
   async updateSumilla(silaboId: number, sumilla: string) {
     await this.db
@@ -707,39 +615,6 @@ export class SyllabusRepository extends BaseRepository {
       })
       .where(eq(silabo.id, id));
     return { ok: true };
-  }
-
-  async updatePartial(id: number, data: Record<string, unknown>) {
-    const updateData = normalizeSyllabusUpdate(data);
-    if (Object.keys(updateData).length === 0) {
-      return this.findById(id);
-    }
-
-    const result = await this.db
-      .update(silabo)
-      .set({
-        ...updateData,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(silabo.id, id))
-      .returning();
-
-    return result[0] || null;
-  }
-
-  async findDraftByCodigo(codigo: string) {
-    const result = await this.db
-      .select()
-      .from(silabo)
-      .where(
-        and(
-          eq(silabo.cursoCodigo, codigo),
-          inArray(silabo.estadoRevision, ["BORRADOR", "ASIGNADO"]),
-        ),
-      )
-      .limit(1);
-
-    return result[0] || null;
   }
 
   async createContribution(data: {
@@ -2063,286 +1938,6 @@ export class SyllabusRepository extends BaseRepository {
 
     return result[0] || null;
   }
-
-// ========================================
-// ASIGNAR DOCENTE A SÍLABO
-// ========================================
-
-async findSyllabusBasicById(id: number) {
-  const result = await this.db
-    .select({
-      id: silabo.id,
-      cursoCodigo: silabo.cursoCodigo,
-      cursoNombre: silabo.cursoNombre,
-    })
-    .from(silabo)
-    .where(eq(silabo.id, id))
-    .limit(1);
-
-  return result[0] ?? null;
 }
 
-async findTeacherById(id: number) {
-  const result = await this.db
-    .select({
-      id: docente.id,
-      correo: docente.correo,
-      nombreDocente: docente.nombreDocente,
-    })
-    .from(docente)
-    .where(eq(docente.id, id))
-    .limit(1);
-
-  return result[0] ?? null;
-}
-
-async findTeacherAssignment(silaboId: number, docenteId: number) {
-  const result = await this.db
-    .select({
-      id: silaboDocente.id,
-    })
-    .from(silaboDocente)
-    .where(
-      and(
-        eq(silaboDocente.silaboId, silaboId),
-        eq(silaboDocente.docenteId, docenteId),
-      ),
-    )
-    .limit(1);
-
-  return result[0] ?? null;
-}
-
-async createTeacherAssignment(params: {
-  silaboId: number;
-  docenteId: number;
-  mensaje: string;
-}) {
-  await this.db.insert(silaboDocente).values({
-    silaboId: params.silaboId,
-    docenteId: params.docenteId,
-    observaciones: params.mensaje,
-    rol: "DOCENTE",
-    creadoEn: new Date().toISOString(),
-    actualizadoEn: new Date().toISOString(),
-  });
-
-  return { ok: true };
-}
-
-async findUnidadSemana(silaboId: number, unidadId: number, semana: number) {
-    const [result] = await this.db
-      .select({
-        id: schema.silaboUnidadSemana.id,
-        silaboUnidadId: schema.silaboUnidadSemana.silaboUnidadId,
-        semana: schema.silaboUnidadSemana.semana,
-      })
-      .from(schema.silaboUnidadSemana)
-      .innerJoin(
-        schema.silaboUnidad,
-        eq(schema.silaboUnidadSemana.silaboUnidadId, schema.silaboUnidad.id),
-      )
-      .where(
-        and(
-          eq(schema.silaboUnidad.id, unidadId),
-          eq(schema.silaboUnidad.silaboId, silaboId),
-          eq(schema.silaboUnidadSemana.semana, semana),
-        ),
-      )
-      .limit(1);
-
-    return result || null;
-  }
-
-  // listar los contenidos conceptuales asociados a una semana específica dentro de una unidad
-  async findContenidosConceptualesBySemana(
-    silaboId: number,
-    unidadId: number,
-    semana: number,
-  ) {
-    const semanaRow = await this.findUnidadSemana(silaboId, unidadId, semana);
-
-    if (!semanaRow) {
-      return null;
-    }
-
-    return await this.db
-      .select()
-      .from(schema.silaboContenidoConceptual)
-      .where(
-        eq(schema.silaboContenidoConceptual.silaboUnidadSemanaId, semanaRow.id),
-      )
-      .orderBy(
-        asc(schema.silaboContenidoConceptual.orden),
-        asc(schema.silaboContenidoConceptual.id),
-      );
-  }
-
-  // crear contenido conceptual asociado a una semana específica dentro de una unidad
-  async insertContenidoConceptual(
-    silaboId: number,
-    unidadId: number,
-    semana: number,
-    data: { descripcion: string; orden?: number },
-  ) {
-    const semanaRow = await this.findUnidadSemana(silaboId, unidadId, semana);
-
-    if (!semanaRow) {
-      return null;
-    }
-
-    const [result] = await this.db
-      .insert(schema.silaboContenidoConceptual)
-      .values({
-        silaboUnidadSemanaId: semanaRow.id,
-        descripcion: data.descripcion,
-        orden: data.orden ?? 1,
-        creadoEn: new Date().toISOString(),
-        actualizadoEn: new Date().toISOString(),
-      })
-      .returning();
-
-    return result;
-  }
-
-  // buscar conenido por id
-  async findContenidoConceptualById(
-    silaboId: number,
-    unidadId: number,
-    semana: number,
-    contenidoId: number,
-  ) {
-    const semanaRow = await this.findUnidadSemana(silaboId, unidadId, semana);
-
-    if (!semanaRow) {
-      return null;
-    }
-
-    const [result] = await this.db
-      .select()
-      .from(schema.silaboContenidoConceptual)
-      .where(
-        and(
-          eq(schema.silaboContenidoConceptual.id, contenidoId),
-          eq(
-            schema.silaboContenidoConceptual.silaboUnidadSemanaId,
-            semanaRow.id,
-          ),
-        ),
-      )
-      .limit(1);
-
-    return result || null;
-  }
-
-  // actualizar contenido conecptula
-
-  async updateContenidoConceptual(
-    silaboId: number,
-    unidadId: number,
-    semana: number,
-    contenidoId: number,
-    data: { descripcion: string; orden?: number },
-  ) {
-    const existing = await this.findContenidoConceptualById(
-      silaboId,
-      unidadId,
-      semana,
-      contenidoId,
-    );
-
-    if (!existing) {
-      return null;
-    }
-
-    const [result] = await this.db
-      .update(schema.silaboContenidoConceptual)
-      .set({
-        descripcion: data.descripcion,
-        orden: data.orden ?? existing.orden,
-        actualizadoEn: new Date().toISOString(),
-      })
-      .where(eq(schema.silaboContenidoConceptual.id, contenidoId))
-      .returning();
-
-    return result || null;
-  }
-
-  // eliminar contenido conecptual
-  async deleteContenidoConceptual(
-    silaboId: number,
-    unidadId: number,
-    semana: number,
-    contenidoId: number,
-  ) {
-    const existing = await this.findContenidoConceptualById(
-      silaboId,
-      unidadId,
-      semana,
-      contenidoId,
-    );
-
-    if (!existing) {
-      return false;
-    }
-
-    const result = await this.db
-      .delete(schema.silaboContenidoConceptual)
-      .where(eq(schema.silaboContenidoConceptual.id, contenidoId))
-      .returning();
-
-    return result.length > 0;
-  }
-  async searchSyllabiByPrefix(prefix: string) {
-    return this.db
-      .select({
-        id: silabo.id,
-        nombre: silabo.cursoNombre,
-        codigo: silabo.cursoCodigo,
-      })
-      .from(silabo)
-      .where(
-        sql`LOWER(${silabo.cursoNombre}) LIKE LOWER(${`${prefix}%`})`
-      )
-      .orderBy(asc(silabo.cursoNombre));
-  }
-
-  async findSyllabusForAssignById(id: number) {
-    const result = await this.db
-      .select({
-        id: silabo.id,
-        nombre: silabo.cursoNombre,
-        codigo: silabo.cursoCodigo,
-      })
-      .from(silabo)
-      .where(eq(silabo.id, id))
-      .limit(1);
-
-    return result[0] ?? null;
-  }
-  async findAssignmentById(id: number) {
-  const result = await this.db
-    .select()
-    .from(silaboDocente)
-    .where(eq(silaboDocente.id, id))
-    .limit(1);
-
-  return result[0] ?? null;
-}
-
-async updateSyllabusState(silaboId: number, estado: string) {
-  await this.db
-    .update(silabo)
-    .set({ estadoRevision: estado })
-    .where(eq(silabo.id, silaboId));
-}
-
-async updateTeacherRole(asignacionId: number, rol: string) {
-  await this.db
-    .update(silaboDocente)
-    .set({ rol })
-    .where(eq(silaboDocente.id, asignacionId));
-}
-
-}
 export const syllabusRepository = new SyllabusRepository();

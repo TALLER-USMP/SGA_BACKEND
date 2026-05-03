@@ -2,18 +2,14 @@ import { HttpRequest } from "@azure/functions";
 import jwksClient from "jwks-rsa";
 import jwt from "jsonwebtoken";
 
-const sessionCookieName = process.env.SESSION_COOKIE_NAME || "sessionSGA";
+const sessionCookieName = process.env.SESSION_COOKIE_NAME;
 export function createAuthCookieHeader(
   token: string,
   options: { maxAge?: number } = {},
 ): string {
-  const isProduction =
-    process.env.NODE_ENV === "production" ||
-    process.env.AZURE_FUNCTIONS_ENVIRONMENT === "Production" ||
-    process.env.COOKIE_SECURE === "true";
-  const secure = isProduction ? "Secure; SameSite=None" : "SameSite=Lax";
+  const secure = process.env.NODE_ENV === "production" ? "Secure" : "Secure";
   const maxAge = options.maxAge || 60 * 60 * 24 * 7;
-  return `${sessionCookieName}=${token}; HttpOnly; Max-Age=${maxAge}; ${secure}; Path=/`;
+  return `${sessionCookieName}=${token}; HttpOnly; Max-Age=${maxAge}; ${secure}; SameSite=None; Path=/`;
 }
 
 export function clearAuthCookieHeader(): string {

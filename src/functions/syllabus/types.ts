@@ -2,20 +2,13 @@
 import { boolean, int, z } from "zod";
 
 //---------------------------
-const OptionalDocenteIdSchema = z.preprocess(
-  (value) => (value === "" || value === null ? undefined : value),
-  z.coerce.number().int().positive().optional(),
-);
-
 export const SyllabusCreateSchema = z.object({
-  asignadoADocenteId: OptionalDocenteIdSchema,
-  asignado_a_docente_id: OptionalDocenteIdSchema,
-  docenteId: OptionalDocenteIdSchema,
-  creadoPorDocenteId: OptionalDocenteIdSchema,
-  actualizadoPorDocenteId: OptionalDocenteIdSchema,
-  estadoRevision: z.string().optional(),
-  estado_revision: z.string().optional(),
-  estado: z.string().optional(),
+  asignadoADocenteId: z.coerce.number().optional(),
+  asignado_a_docente_id: z.number().optional(),
+  docenteId: z.coerce.number().optional(),
+  
+  creadoPorDocenteId: z.coerce.number().optional(),
+  actualizadoPorDocenteId: z.coerce.number().optional(),
   nombreAsignatura: z.string(),
   departamentoAcademico: z.string(),
   escuelaProfesional: z.string(),
@@ -43,6 +36,7 @@ export const SyllabusCreateSchema = z.object({
   horasPracticaLectivaDistancia: z.number().nullable().optional(),
   horasPracticaNoLectivaPresencial: z.number().nullable().optional(),
   horasPracticaNoLectivaDistancia: z.number().nullable().optional(),
+  
 
   // 🔹 Campos de créditos
   creditosTeoria: z.number(),
@@ -550,56 +544,4 @@ export type FormulaEvaluacionCreate = z.infer<
 >;
 export type FormulaEvaluacionUpdate = z.infer<
   typeof FormulaEvaluacionUpdateSchema
->;
-// ========================================
-// ASIGNAR DOCENTE A SÍLABO
-// ========================================
-export type AssignTeacherBody = {
-  docenteId: number;
-  silaboId: number;
-  periodoAcademico: string;
-  mensaje?: string;
-};
-/*
-3 prueba
-*/
-
-// Schema para crear un contenido conceptual
-export const ContenidoConceptualCreateSchema = z.object({
-  descripcion: z
-    .string()
-    .trim()
-    .min(1, "La descripción es obligatoria")
-    .max(400, "La descripción no debe exceder 400 caracteres"),
-  orden: z.number().int().positive().optional(),
-});
-
-export const ContenidoConceptualUpdateSchema = z.object({
-  descripcion: z
-    .string()
-    .trim()
-    .min(1, "La descripción es obligatoria")
-    .max(400, "La descripción no debe exceder 400 caracteres"),
-  orden: z.number().int().positive().optional(),
-});
-
-export const ContenidoConceptualResponseSchema = z.object({
-  id: z.number().int(),
-  silaboUnidadSemanaId: z.number().int(),
-  descripcion: z.string(),
-  orden: z.number().int(),
-  creadoEn: z.string().optional(),
-  actualizadoEn: z.string().optional(),
-});
-
-export type ContenidoConceptualCreate = z.infer<
-  typeof ContenidoConceptualCreateSchema
->;
-
-export type ContenidoConceptualUpdate = z.infer<
-  typeof ContenidoConceptualUpdateSchema
->;
-
-export type ContenidoConceptualResponse = z.infer<
-  typeof ContenidoConceptualResponseSchema
 >;
