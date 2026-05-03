@@ -19,6 +19,11 @@ export class AuthController implements Readable {
     const { mailToken } = loginRequestSchema.parse(body);
     const authResponse = await authService.login(microsoftToken);
     const responseData = loginResponseSchema.parse(authResponse);
+    const redirectUrl = new URL(process.env.DASHBOARD_URL!);
+    redirectUrl.searchParams.set("token", responseData.token);
+    if (mailToken) {
+      redirectUrl.searchParams.set("mailToken", mailToken);
+    }
 
     return {
       status: STATUS_CODES.OK,
@@ -28,19 +33,19 @@ export class AuthController implements Readable {
       jsonBody: {
         message: "Inicio de sesión exitoso",
         user: responseData.user,
-        url: `${process.env.DASHBOARD_URL}/?token=${responseData.token}&mailToken=${mailToken}`,
+        url: redirectUrl.toString(),
       },
     };
   }
 
   @route("/me", "POST")
   async getOne(req: HttpRequest): Promise<HttpResponseInit> {
-    const tokenFromCookie = getCookie(req.headers, "sessionSGA");
     const tokenFromQuery = req.query.get("token");
     const body = (await req.json().catch(() => ({}))) as { token?: string };
     const tokenFromBody = body.token;
+    const tokenFromCookie = getCookie(req.headers, "sessionSGA");
 
-    const token = tokenFromCookie || tokenFromQuery || tokenFromBody || null;
+    const token = tokenFromBody || tokenFromQuery || tokenFromCookie || null;
 
     if (!token) {
       return {

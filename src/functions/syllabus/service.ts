@@ -265,6 +265,62 @@ export class SyllabusService {
     return idNewSyllabus;
   }
 
+  async getSyllabusById(id: number) {
+    const result = await syllabusRepository.getCompleteSyllabus(id);
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "SÃ­labo no encontrado");
+    }
+    return result;
+  }
+
+  async updateSyllabus(id: number, payload: unknown) {
+    const current = await syllabusRepository.findById(id);
+    if (!current) {
+      throw new AppError("NotFound", "NOT_FOUND", "SÃ­labo no encontrado");
+    }
+
+    const result = await syllabusRepository.updatePartial(
+      id,
+      (payload ?? {}) as Record<string, unknown>,
+    );
+    return result;
+  }
+
+  async findDraftByCodigo(codigo: string) {
+    if (!codigo.trim()) {
+      throw new AppError("BadRequest", "BAD_REQUEST", "codigo es requerido");
+    }
+
+    const result = await syllabusRepository.findDraftByCodigo(codigo.trim());
+    if (!result) {
+      throw new AppError("NotFound", "NOT_FOUND", "Borrador no encontrado");
+    }
+    return result;
+  }
+
+  async finalizeSyllabus(id: number, payload: unknown) {
+    const body = (payload ?? {}) as Record<string, unknown>;
+    const estado =
+      typeof body.estado === "string"
+        ? body.estado
+        : typeof body.estadoRevision === "string"
+          ? body.estadoRevision
+          : "ANALIZANDO";
+
+    const current = await syllabusRepository.getStateById(id);
+    if (!current) {
+      throw new AppError("NotFound", "NOT_FOUND", "SÃ­labo no encontrado");
+    }
+
+    await syllabusRepository.updateReviewStatus(id, estado);
+    return {
+      ok: true,
+      message: `Estado del sÃ­labo cambiado a ${estado} correctamente`,
+      estadoAnterior: current.estadoRevision,
+      estadoNuevo: estado,
+    };
+  }
+
   // ---------- CONTENIDOS ACTITUDINALES ----------
   async getAttitudes(syllabusId: string) {
     const sId = Number(syllabusId);

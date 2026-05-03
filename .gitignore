@@ -24,6 +24,8 @@ local.settings.json
 
 node_modules
 dist
+SGA_BACKEND-Nuevo/
+func-*.log
 
 # Local python packages
 .python_packages/
@@ -46,6 +48,3 @@ __pycache__/
 __blobstorage__
 __queuestorage__
 __azurite_db*__.json
-
-# Adding CODEOWNERS file
-.github/CODEOWNERS

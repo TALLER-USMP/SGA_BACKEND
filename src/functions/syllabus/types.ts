@@ -2,7 +2,20 @@
 import { boolean, int, z } from "zod";
 
 //---------------------------
+const OptionalDocenteIdSchema = z.preprocess(
+  (value) => (value === "" || value === null ? undefined : value),
+  z.coerce.number().int().positive().optional(),
+);
+
 export const SyllabusCreateSchema = z.object({
+  asignadoADocenteId: OptionalDocenteIdSchema,
+  asignado_a_docente_id: OptionalDocenteIdSchema,
+  docenteId: OptionalDocenteIdSchema,
+  creadoPorDocenteId: OptionalDocenteIdSchema,
+  actualizadoPorDocenteId: OptionalDocenteIdSchema,
+  estadoRevision: z.string().optional(),
+  estado_revision: z.string().optional(),
+  estado: z.string().optional(),
   nombreAsignatura: z.string(),
   departamentoAcademico: z.string(),
   escuelaProfesional: z.string(),
