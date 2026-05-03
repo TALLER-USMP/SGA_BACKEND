@@ -25,6 +25,96 @@ type CreateItem = { text: string; order?: number | null; code?: string | null };
 const GROUP_COMP = "COMP";
 const GROUP_ACT = "ACT";
 
+function firstDefined<T>(
+  ...values: Array<T | undefined | null>
+): T | undefined {
+  return values.find((value) => value !== undefined && value !== null) as
+    | T
+    | undefined;
+}
+
+function normalizeSyllabusUpdate(data: Record<string, unknown>) {
+  const updateData: Record<string, unknown> = {};
+  const assign = (column: string, ...keys: string[]) => {
+    const value = firstDefined(...keys.map((key) => data[key]));
+    if (value !== undefined) {
+      updateData[column] = value;
+    }
+  };
+
+  assign(
+    "departamentoAcademico",
+    "departamentoAcademico",
+    "departamento_academico",
+  );
+  assign("escuelaProfesional", "escuelaProfesional", "escuela_profesional");
+  assign("programaAcademico", "programaAcademico", "programa_academico");
+  assign("areaCurricular", "areaCurricular", "area_curricular");
+  assign(
+    "cursoCodigo",
+    "cursoCodigo",
+    "codigoAsignatura",
+    "codigo",
+    "curso_codigo",
+  );
+  assign("cursoNombre", "cursoNombre", "nombreAsignatura", "curso_nombre");
+  assign("semestreAcademico", "semestreAcademico", "semestre_academico");
+  assign("tipoAsignatura", "tipoAsignatura", "tipo_asignatura");
+  assign(
+    "tipoDeEstudios",
+    "tipoDeEstudios",
+    "tipoEstudios",
+    "tipo_de_estudios",
+  );
+  assign(
+    "modalidadDeAsignatura",
+    "modalidadDeAsignatura",
+    "modalidad",
+    "modalidad_de_asignatura",
+  );
+  assign(
+    "formatoDeCurso",
+    "formatoDeCurso",
+    "formatoCurso",
+    "formato_de_curso",
+  );
+  assign("ciclo", "ciclo");
+  assign("requisitos", "requisitos");
+  assign("horasTeoria", "horasTeoria", "horas_teoria");
+  assign("horasPractica", "horasPractica", "horas_practica");
+  assign("horasLaboratorio", "horasLaboratorio", "horas_laboratorio");
+  assign("horasTotales", "horasTotales", "horas_totales");
+  assign("creditosTeoria", "creditosTeoria", "creditos_teoria");
+  assign("creditosPractica", "creditosPractica", "creditos_practica");
+  assign("creditosTotales", "creditosTotales", "creditos_totales");
+  assign("estadoRevision", "estadoRevision", "estado", "estado_revision");
+  assign(
+    "asignadoADocenteId",
+    "asignadoADocenteId",
+    "asignado_a_docente_id",
+    "docenteId",
+    "docente_id",
+  );
+  assign("creadoPorDocenteId", "creadoPorDocenteId", "creado_por_docente_id");
+  assign(
+    "actualizadoPorDocenteId",
+    "actualizadoPorDocenteId",
+    "actualizado_por_docente_id",
+  );
+  assign(
+    "estrategiasMetodologicas",
+    "estrategiasMetodologicas",
+    "estrategias_metodologicas",
+  );
+  assign(
+    "recursosDidacticosNotas",
+    "recursosDidacticosNotas",
+    "recursos_didacticos_notas",
+  );
+
+  return updateData;
+}
+
 export class SyllabusRepository extends BaseRepository {
   async findById(id: number) {
     const syllabus = await this.db
@@ -89,62 +179,86 @@ export class SyllabusRepository extends BaseRepository {
   }
 
   async create(syllabusData: z.infer<typeof SyllabusCreateSchema>) {
-    const result = await this.db
-      .insert(silabo)
-      .values({
-        departamentoAcademico: syllabusData.departamentoAcademico,
-        escuelaProfesional: syllabusData.escuelaProfesional,
-        programaAcademico: syllabusData.programaAcademico,
-        cursoCodigo: syllabusData.codigoAsignatura,
-        cursoNombre: syllabusData.nombreAsignatura,
-        semestreAcademico: syllabusData.semestreAcademico,
-        tipoAsignatura: syllabusData.tipoAsignatura,
-        tipoDeEstudios: syllabusData.tipoEstudios,
-        modalidadDeAsignatura: syllabusData.modalidad,
-        ciclo: syllabusData.ciclo,
+    const assignedTeacherId =
+      syllabusData.asignadoADocenteId ??
+      syllabusData.asignado_a_docente_id ??
+      syllabusData.docenteId ??
+      null;
+    const createdByTeacherId =
+      syllabusData.creadoPorDocenteId ?? assignedTeacherId;
+    const updatedByTeacherId =
+      syllabusData.actualizadoPorDocenteId ?? createdByTeacherId;
 
-        requisitos: syllabusData.requisitos || null,
+    return await this.db.transaction(async (tx) => {
+      const [createdSyllabus] = await tx
+        .insert(silabo)
+        .values({
+          departamentoAcademico: syllabusData.departamentoAcademico,
+          escuelaProfesional: syllabusData.escuelaProfesional,
+          programaAcademico: syllabusData.programaAcademico,
+          cursoCodigo: syllabusData.codigoAsignatura,
+          cursoNombre: syllabusData.nombreAsignatura,
+          semestreAcademico: syllabusData.semestreAcademico,
+          tipoAsignatura: syllabusData.tipoAsignatura,
+          tipoDeEstudios: syllabusData.tipoEstudios,
+          modalidadDeAsignatura: syllabusData.modalidad,
+          ciclo: syllabusData.ciclo,
 
-        // 🕒 Horas
-        horasTeoria: syllabusData.horasTeoria ?? null,
-        horasPractica: syllabusData.horasPractica ?? null,
-        horasLaboratorio: syllabusData.horasLaboratorio ?? null,
+          requisitos: syllabusData.requisitos || null,
 
-        horasTeoriaLectivaPresencial:
-          syllabusData.horasTeoriaLectivaPresencial ?? null,
-        horasTeoriaLectivaDistancia:
-          syllabusData.horasTeoriaLectivaDistancia ?? null,
-        horasTeoriaNoLectivaPresencial:
-          syllabusData.horasTeoriaNoLectivaPresencial ?? null,
-        horasTeoriaNoLectivaDistancia:
-          syllabusData.horasTeoriaNoLectivaDistancia ?? null,
+          // 🕒 Horas
+          horasTeoria: syllabusData.horasTeoria ?? null,
+          horasPractica: syllabusData.horasPractica ?? null,
+          horasLaboratorio: syllabusData.horasLaboratorio ?? null,
 
-        horasPracticaLectivaPresencial:
-          syllabusData.horasPracticaLectivaPresencial ?? null,
-        horasPracticaLectivaDistancia:
-          syllabusData.horasPracticaLectivaDistancia ?? null,
-        horasPracticaNoLectivaPresencial:
-          syllabusData.horasPracticaNoLectivaPresencial ?? null,
-        horasPracticaNoLectivaDistancia:
-          syllabusData.horasPracticaNoLectivaDistancia ?? null,
+          horasTeoriaLectivaPresencial:
+            syllabusData.horasTeoriaLectivaPresencial ?? null,
+          horasTeoriaLectivaDistancia:
+            syllabusData.horasTeoriaLectivaDistancia ?? null,
+          horasTeoriaNoLectivaPresencial:
+            syllabusData.horasTeoriaNoLectivaPresencial ?? null,
+          horasTeoriaNoLectivaDistancia:
+            syllabusData.horasTeoriaNoLectivaDistancia ?? null,
 
-        // 🧮 Créditos
-        creditosTeoria: syllabusData.creditosTeoria ?? null,
-        creditosPractica: syllabusData.creditosPractica ?? null,
+          horasPracticaLectivaPresencial:
+            syllabusData.horasPracticaLectivaPresencial ?? null,
+          horasPracticaLectivaDistancia:
+            syllabusData.horasPracticaLectivaDistancia ?? null,
+          horasPracticaNoLectivaPresencial:
+            syllabusData.horasPracticaNoLectivaPresencial ?? null,
+          horasPracticaNoLectivaDistancia:
+            syllabusData.horasPracticaNoLectivaDistancia ?? null,
 
-        // 👤 Relaciones (null por ahora, hasta integrar autenticación)
-        creadoPorDocenteId: null,
-        actualizadoPorDocenteId: null,
-        asignadoADocenteId: null,
+          // 🧮 Créditos
+          horasTotales: syllabusData.horasTotales ?? null,
+          creditosTeoria: syllabusData.creditosTeoria ?? null,
+          creditosPractica: syllabusData.creditosPractica ?? null,
+          creditosTotales: syllabusData.creditosTotales ?? null,
 
-        // 🟢 Estado inicial por defecto
-        estadoRevision: "",
-      })
-      .returning({ id: silabo.id });
+          // 👤 Relaciones (null por ahora, hasta integrar autenticación)
+          creadoPorDocenteId: createdByTeacherId,
+          actualizadoPorDocenteId: updatedByTeacherId,
+          asignadoADocenteId: assignedTeacherId,
 
-    //const idSyllabus = [{ id: 1 }]; // simula el ID retornado
+          // 🟢 Estado inicial por defecto
+          estadoRevision:
+            syllabusData.estadoRevision ??
+            syllabusData.estado_revision ??
+            syllabusData.estado ??
+            "ASIGNADO",
+        })
+        .returning({ id: silabo.id });
 
-    return result[0].id;
+      if (assignedTeacherId) {
+        await tx.insert(silaboDocente).values({
+          silaboId: createdSyllabus.id,
+          docenteId: assignedTeacherId,
+          rol: "DOCENTE",
+        });
+      }
+
+      return createdSyllabus.id;
+    });
   }
 
   async updateSumilla(silaboId: number, sumilla: string) {
@@ -593,6 +707,39 @@ export class SyllabusRepository extends BaseRepository {
       })
       .where(eq(silabo.id, id));
     return { ok: true };
+  }
+
+  async updatePartial(id: number, data: Record<string, unknown>) {
+    const updateData = normalizeSyllabusUpdate(data);
+    if (Object.keys(updateData).length === 0) {
+      return this.findById(id);
+    }
+
+    const result = await this.db
+      .update(silabo)
+      .set({
+        ...updateData,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(silabo.id, id))
+      .returning();
+
+    return result[0] || null;
+  }
+
+  async findDraftByCodigo(codigo: string) {
+    const result = await this.db
+      .select()
+      .from(silabo)
+      .where(
+        and(
+          eq(silabo.cursoCodigo, codigo),
+          inArray(silabo.estadoRevision, ["BORRADOR", "ASIGNADO"]),
+        ),
+      )
+      .limit(1);
+
+    return result[0] || null;
   }
 
   async createContribution(data: {

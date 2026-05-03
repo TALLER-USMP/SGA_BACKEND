@@ -19,6 +19,50 @@ export type RouteDefinition = {
   handlerKey: string;
 };
 
+function getCorsOrigin(req: HttpRequest): string | undefined {
+  const origin = req.headers.get("origin") || req.headers.get("Origin");
+  if (!origin) return undefined;
+
+  const configuredOrigins = [
+    process.env.CORS_ALLOWED_ORIGINS,
+    process.env.ALLOWED_ORIGINS,
+    process.env.FRONTEND_URL,
+    process.env.LOGIN_URL,
+    process.env.DASHBOARD_URL,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => value!.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  const allowedOrigins = new Set([
+    "http://localhost:5001",
+    "http://localhost:5002",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    ...configuredOrigins,
+  ]);
+
+  return allowedOrigins.has(origin) ? origin : undefined;
+}
+
+function createCorsHeaders(req: HttpRequest): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, x-functions-key",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    Vary: "Origin",
+  };
+
+  const origin = getCorsOrigin(req);
+  if (origin) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+
+  return headers;
+}
+
 /**
  * This registers a normal class as a controller class to get started, and also registers the route prefix.
  * @param path Prefix of API route
@@ -128,9 +172,7 @@ export function route(path: string, method: HttpMethod = "GET") {
       req: HttpRequest,
       context: InvocationContext,
     ): Promise<HttpResponseInit> {
-      const responseHeaders: Record<string, string> = {
-        "Access-Control-Allow-Credentials": "true",
-      };
+      const responseHeaders = createCorsHeaders(req);
 
       if (req.method === "OPTIONS") {
         return {
@@ -158,7 +200,14 @@ export function route(path: string, method: HttpMethod = "GET") {
         };
       } catch (error: unknown) {
         if (error instanceof AppError) {
-          return error.toHttpResponse();
+          const errorResponse = error.toHttpResponse();
+          return {
+            ...errorResponse,
+            headers: {
+              ...responseHeaders,
+              ...(errorResponse.headers as Record<string, string> | undefined),
+            },
+          };
         }
 
         if (error instanceof ZodError) {
