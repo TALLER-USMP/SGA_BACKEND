@@ -128,8 +128,6 @@ export class SyllabusController implements Updatable {
     };
   }
 
-
-
   /**
    * PUT /api/syllabus/{syllabusId}/state
    * Actualizar estado de revisión del sílabo
