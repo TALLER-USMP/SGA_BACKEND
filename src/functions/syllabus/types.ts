@@ -3,6 +3,12 @@ import { boolean, int, z } from "zod";
 
 //---------------------------
 export const SyllabusCreateSchema = z.object({
+  asignadoADocenteId: z.coerce.number().optional(),
+  asignado_a_docente_id: z.number().optional(),
+  docenteId: z.coerce.number().optional(),
+  
+  creadoPorDocenteId: z.coerce.number().optional(),
+  actualizadoPorDocenteId: z.coerce.number().optional(),
   nombreAsignatura: z.string(),
   departamentoAcademico: z.string(),
   escuelaProfesional: z.string(),
@@ -30,6 +36,7 @@ export const SyllabusCreateSchema = z.object({
   horasPracticaLectivaDistancia: z.number().nullable().optional(),
   horasPracticaNoLectivaPresencial: z.number().nullable().optional(),
   horasPracticaNoLectivaDistancia: z.number().nullable().optional(),
+  
 
   // 🔹 Campos de créditos
   creditosTeoria: z.number(),
