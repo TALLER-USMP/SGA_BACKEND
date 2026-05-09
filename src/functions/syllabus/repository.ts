@@ -1663,36 +1663,65 @@ export class SyllabusRepository extends BaseRepository {
     return result[0] ?? null;
   }
 
-  async getAllCourses() {
+  async getSyllabusCatalog() {
     try {
       const result = await this.db
         .select({
           id: silabo.id,
-          code: silabo.cursoCodigo,
-          name: silabo.cursoNombre,
+          cursoCodigo: silabo.cursoCodigo,
+          cursoNombre: silabo.cursoNombre,
           ciclo: silabo.ciclo,
           escuela: silabo.escuelaProfesional,
           estadoRevision: silabo.estadoRevision,
+          creditosTeoria: silabo.creditosTeoria,
+          creditosPractica: silabo.creditosPractica,
+          creditosTotales: silabo.creditosTotales,
+          sumilla: silaboSumilla.contenido,
+          sumillaVersion: silaboSumilla.version,
+          sumillaEsActual: silaboSumilla.esActual,
         })
         .from(silabo)
-        .orderBy(asc(silabo.cursoCodigo));
+        .leftJoin(
+          silaboSumilla,
+          and(
+            eq(silaboSumilla.silaboId, silabo.id),
+            eq(silaboSumilla.esActual, true),
+          ),
+        )
+        .orderBy(asc(silabo.cursoCodigo), asc(silabo.id));
 
-      return result.map((r) => ({
-        id: r.id,
-        code: r.code ?? null,
-        name: r.name ?? null,
-        ciclo: r.ciclo ?? null,
-        escuela: r.escuela ?? null,
-        estadoRevision: r.estadoRevision ?? null,
-      }));
+      return result.map((item) => {
+        const creditosTeoria = Number(item.creditosTeoria ?? 0);
+        const creditosPractica = Number(item.creditosPractica ?? 0);
+        const creditosTotales = Number(item.creditosTotales ?? 0);
+
+        return {
+          id: item.id,
+          syllabusId: item.id,
+          cursoCodigo: item.cursoCodigo ?? null,
+          cursoNombre: item.cursoNombre ?? null,
+          ciclo: item.ciclo ?? null,
+          escuela: item.escuela ?? null,
+          estadoRevision: item.estadoRevision ?? null,
+          creditos:
+            creditosTotales > 0
+              ? creditosTotales
+              : creditosTeoria + creditosPractica,
+          sumilla: item.sumilla ?? null,
+          tieneSumilla: Boolean(item.sumilla),
+          sumillaVersion: item.sumillaVersion ?? null,
+          sumillaEsActual: item.sumillaEsActual ?? null,
+        };
+      });
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
       }
+
       throw new AppError(
         "DatabaseError",
         "INTERNAL_SERVER_ERROR",
-        "Error al consultar cursos en la base de datos",
+        "Error al consultar el catálogo de sumillas",
         error,
       );
     }

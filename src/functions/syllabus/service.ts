@@ -800,10 +800,10 @@ export class SyllabusService {
     };
   }
 
-  async getAllCourses() {
-    return await syllabusRepository.getAllCourses();
+  async getSyllabusCatalog() {
+    return await syllabusRepository.getSyllabusCatalog();
   }
-
+  
   // ---------- SECCIÓN I: DATOS GENERALES ----------
   async updateDatosGenerales(id: number, data: DatosGeneralesUpdate) {
     const syllabus = await syllabusRepository.findById(id);
