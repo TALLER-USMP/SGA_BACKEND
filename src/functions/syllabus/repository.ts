@@ -89,6 +89,16 @@ export class SyllabusRepository extends BaseRepository {
   }
 
   async create(syllabusData: z.infer<typeof SyllabusCreateSchema>) {
+    const docenteId =
+      Number(
+        (syllabusData as any).asignadoADocenteId ??
+          (syllabusData as any).asignado_a_docente_id ??
+          (syllabusData as any).docenteId,
+      ) || null;
+
+    console.log("SYLLABUS DATA CREATE:", syllabusData);
+    console.log("DOCENTE ID CREATE:", docenteId);
+
     const result = await this.db
       .insert(silabo)
       .values({
@@ -105,7 +115,6 @@ export class SyllabusRepository extends BaseRepository {
 
         requisitos: syllabusData.requisitos || null,
 
-        // 🕒 Horas
         horasTeoria: syllabusData.horasTeoria ?? null,
         horasPractica: syllabusData.horasPractica ?? null,
         horasLaboratorio: syllabusData.horasLaboratorio ?? null,
@@ -128,23 +137,36 @@ export class SyllabusRepository extends BaseRepository {
         horasPracticaNoLectivaDistancia:
           syllabusData.horasPracticaNoLectivaDistancia ?? null,
 
-        // 🧮 Créditos
         creditosTeoria: syllabusData.creditosTeoria ?? null,
         creditosPractica: syllabusData.creditosPractica ?? null,
 
-        // 👤 Relaciones (null por ahora, hasta integrar autenticación)
-        creadoPorDocenteId: null,
-        actualizadoPorDocenteId: null,
-        asignadoADocenteId: null,
-
-        // 🟢 Estado inicial por defecto
-        estadoRevision: "",
+        creadoPorDocenteId: docenteId,
+        actualizadoPorDocenteId: docenteId,
+        asignadoADocenteId: docenteId,
+        estadoRevision: "ASIGNADO",
       })
       .returning({ id: silabo.id });
 
-    //const idSyllabus = [{ id: 1 }]; // simula el ID retornado
+    const silaboId = result[0].id;
 
-    return result[0].id;
+    if (docenteId) {
+      await this.db
+        .update(silabo)
+        .set({
+          asignadoADocenteId: docenteId,
+          creadoPorDocenteId: docenteId,
+          actualizadoPorDocenteId: docenteId,
+        })
+        .where(eq(silabo.id, silaboId));
+
+      await this.db.insert(silaboDocente).values({
+        silaboId,
+        docenteId,
+        rol: "DOCENTE",
+      });
+    }
+
+    return silaboId;
   }
 
   async updateSumilla(silaboId: number, sumilla: string) {
@@ -1641,36 +1663,65 @@ export class SyllabusRepository extends BaseRepository {
     return result[0] ?? null;
   }
 
-  async getAllCourses() {
+  async getSyllabusCatalog() {
     try {
       const result = await this.db
         .select({
           id: silabo.id,
-          code: silabo.cursoCodigo,
-          name: silabo.cursoNombre,
+          cursoCodigo: silabo.cursoCodigo,
+          cursoNombre: silabo.cursoNombre,
           ciclo: silabo.ciclo,
           escuela: silabo.escuelaProfesional,
           estadoRevision: silabo.estadoRevision,
+          creditosTeoria: silabo.creditosTeoria,
+          creditosPractica: silabo.creditosPractica,
+          creditosTotales: silabo.creditosTotales,
+          sumilla: silaboSumilla.contenido,
+          sumillaVersion: silaboSumilla.version,
+          sumillaEsActual: silaboSumilla.esActual,
         })
         .from(silabo)
-        .orderBy(asc(silabo.cursoCodigo));
+        .leftJoin(
+          silaboSumilla,
+          and(
+            eq(silaboSumilla.silaboId, silabo.id),
+            eq(silaboSumilla.esActual, true),
+          ),
+        )
+        .orderBy(asc(silabo.cursoCodigo), asc(silabo.id));
 
-      return result.map((r) => ({
-        id: r.id,
-        code: r.code ?? null,
-        name: r.name ?? null,
-        ciclo: r.ciclo ?? null,
-        escuela: r.escuela ?? null,
-        estadoRevision: r.estadoRevision ?? null,
-      }));
+      return result.map((item) => {
+        const creditosTeoria = Number(item.creditosTeoria ?? 0);
+        const creditosPractica = Number(item.creditosPractica ?? 0);
+        const creditosTotales = Number(item.creditosTotales ?? 0);
+
+        return {
+          id: item.id,
+          syllabusId: item.id,
+          cursoCodigo: item.cursoCodigo ?? null,
+          cursoNombre: item.cursoNombre ?? null,
+          ciclo: item.ciclo ?? null,
+          escuela: item.escuela ?? null,
+          estadoRevision: item.estadoRevision ?? null,
+          creditos:
+            creditosTotales > 0
+              ? creditosTotales
+              : creditosTeoria + creditosPractica,
+          sumilla: item.sumilla ?? null,
+          tieneSumilla: Boolean(item.sumilla),
+          sumillaVersion: item.sumillaVersion ?? null,
+          sumillaEsActual: item.sumillaEsActual ?? null,
+        };
+      });
     } catch (error) {
       if (error instanceof AppError) {
         throw error;
       }
+
       throw new AppError(
         "DatabaseError",
         "INTERNAL_SERVER_ERROR",
-        "Error al consultar cursos en la base de datos",
+        "Error al consultar el catálogo de sumillas",
         error,
       );
     }

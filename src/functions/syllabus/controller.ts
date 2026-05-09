@@ -108,6 +108,27 @@ export class SyllabusController implements Updatable {
   }
 
   /**
+   * GET /api/syllabus/catalog
+   * Obtener catálogo de todos los sílabos con su sumilla si existe
+   */
+  @route("/catalog", "GET")
+  async getSyllabusCatalog(
+    _req: HttpRequest,
+    _ctx: InvocationContext,
+  ): Promise<HttpResponseInit> {
+    const result = await syllabusService.getSyllabusCatalog();
+
+    return {
+      status: STATUS_CODES.OK,
+      jsonBody: {
+        success: true,
+        message: "Catálogo de sumillas obtenido correctamente",
+        data: result,
+      },
+    };
+  }
+
+  /**
    * PUT /api/syllabus/{syllabusId}/state
    * Actualizar estado de revisión del sílabo
    */
