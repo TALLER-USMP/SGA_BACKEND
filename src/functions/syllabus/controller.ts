@@ -176,10 +176,9 @@ export class SyllabusController implements Updatable {
    */
   @route("/catalog", "GET")
   async getSyllabusCatalog(
-    req: HttpRequest,
+    _req: HttpRequest,
     _ctx: InvocationContext,
   ): Promise<HttpResponseInit> {
-    syllabusService.assertCanAccessReviewModule(this.getUser(req));
     const result = await syllabusService.getSyllabusCatalog();
 
     return {
@@ -191,6 +190,8 @@ export class SyllabusController implements Updatable {
       },
     };
   }
+
+
 
   /**
    * PUT /api/syllabus/{syllabusId}/state

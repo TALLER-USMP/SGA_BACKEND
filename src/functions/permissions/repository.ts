@@ -3,7 +3,10 @@ import { eq, and } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../../../drizzle/schema";
 import { AppError } from "../../error";
-import { silaboSeccionPermiso, docente } from "../../../drizzle/schema";
+import {
+  silaboSeccionPermiso,
+  docente,
+} from "../../../drizzle/schema";
 
 export class PermissionsRepository {
   private db: NodePgDatabase<typeof schema>;
@@ -63,35 +66,22 @@ export class PermissionsRepository {
         ),
       );
 
+    // Si viene vacío, representa "Solo lectura".
+    // No se inserta nada porque no hay secciones editables.
     if (!Array.isArray(permisos) || permisos.length === 0) {
       return [];
     }
 
+    // Fecha actual + 20 días
     const fechaActual = new Date();
     const fechaLimite = new Date(fechaActual);
 
     fechaLimite.setDate(fechaActual.getDate() + 20);
 
-    const permisosNormalizados = permisos
-      .map((permiso) => Number(permiso.numeroSeccion))
-      .filter((numeroSeccion) => {
-        return (
-          !Number.isNaN(numeroSeccion) &&
-          numeroSeccion >= 1 &&
-          numeroSeccion <= 9
-        );
-      });
-
-    const permisosUnicos = Array.from(new Set(permisosNormalizados));
-
-    if (permisosUnicos.length === 0) {
-      return [];
-    }
-
-    const permisosAInsertar = permisosUnicos.map((numeroSeccion) => ({
+    const permisosAInsertar = permisos.map((p) => ({
       silaboId: Number(silaboId),
       docenteId: Number(docenteId),
-      numeroSeccion,
+      numeroSeccion: Number(p.numeroSeccion),
       puedeEditar: true,
       puedeComentar: false,
       fechaLimite: fechaLimite.toISOString(),
